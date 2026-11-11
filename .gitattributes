@@ -1,0 +1,4 @@
+# shell 脚本和 gradlew 在 Windows 上检出也保持 LF
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "fleshpark_assets",
+  "version": "${version}",
+  "name": "血肉公园客户端",
+  "description": "血肉公园的贴图、模型、肉索网格渲染和雾。",
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["world.hechao.fleshpark.client.FleshParkClient"],
+    "preLaunch": ["world.hechao.fleshpark.client.PackInstaller"]
+  },
+  "accessWidener": "fleshpark.accesswidener",
+  "mixins": ["fleshpark.mixins.json"],
+  "depends": {
+    "minecraft": "1.21.11",
+    "fabricloader": ">=0.16",
+    "fabric-api": "*"
+  }
+}

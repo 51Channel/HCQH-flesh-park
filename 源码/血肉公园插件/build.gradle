@@ -1,0 +1,71 @@
+plugins {
+    id "java"
+}
+
+group = "world.hechao"
+version = "0.2.0"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "papermc"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
+    }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT"
+}
+
+// 肉的网格：构建时从规划算出来。网格进客户端模组，锚点表进插件
+def meshBlob = file("../客户端模组/generated_media/assets/fleshpark/mesh/flesh.bin")
+def meshIndex = layout.buildDirectory.file("bake/mesh_index.txt").get().asFile
+tasks.register("bakeMesh", JavaExec) {
+    dependsOn compileJava
+    classpath = sourceSets.main.output.classesDirs
+    mainClass = "world.hechao.fleshpark.core.MeshBaker"
+    args = [meshBlob.path, meshIndex.path]
+    jvmArgs = ["-Xmx4g"]
+    inputs.files(sourceSets.main.output.classesDirs)
+    outputs.files(meshBlob, meshIndex)
+}
+sourceSets.main.resources.srcDir(layout.buildDirectory.dir("bake"))
+tasks.named("processResources") {
+    dependsOn "bakeMesh"
+}
+
+tasks.register("selfTest", JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "world.hechao.fleshpark.SelfTest"
+}
+
+// 没有 JUnit；build 时跑离线自检。
+tasks.named("test") {
+    failOnNoDiscoveredTests = false
+    dependsOn "selfTest"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
+
+processResources {
+    inputs.property("version", project.version)
+    filteringCharset = "UTF-8"
+    filesMatching("plugin.yml") {
+        expand(version: version)
+    }
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}

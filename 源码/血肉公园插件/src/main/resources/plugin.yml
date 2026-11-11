@@ -1,0 +1,16 @@
+name: FleshPark
+version: ${version}
+main: world.hechao.fleshpark.FleshParkPlugin
+api-version: "1.21"
+authors:
+  - Hechao
+description: 血肉公园：公园封了以后一个人下去探险的单人实况原型。
+commands:
+  fp:
+    description: 血肉公园测试命令。
+    usage: /fp [go|reset|jump|tp|status]
+    permission: fleshpark.admin
+permissions:
+  fleshpark.admin:
+    description: 跳段、传送、重来。
+    default: true

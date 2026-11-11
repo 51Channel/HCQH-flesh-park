@@ -1,0 +1,14 @@
+.gradle/
+build/
+*.class
+__pycache__/
+run/
+.DS_Store
+.idea/
+*.iml
+
+# 插件构建时烘出来的肉网格（56 MB），先构建插件就有
+/源码/客户端模组/generated_media/assets/fleshpark/mesh/flesh.bin
+
+# 构建好的 jar 和导出的模型放在 GitHub Releases，不进仓库
+/交付/

@@ -1,0 +1,137 @@
+w 4
+c shot 01_archive1
+w 9
+c shot 02_archive2
+w 10
+c shot 03_archive3
+w 9
+c shot 04_archive4
+w 11
+c shot 05_archive5
+w 11
+c shot 06_archive6a
+w 3
+c shot 06_archive6b
+w 8
+c cmd fp skip
+w 9
+c cmd fp fx phone
+w 1.5
+c shot 07_phone_0704
+c cmd fp fx phone
+w 1
+g -3.2 4.2 10
+g -3.2 0.8 8
+c lookat -3.42 231.02 1.13
+w 0.6
+c shot 08_tape_tag
+c use
+l 磁带 捡起 6
+g -1.6 0.2 6
+c lookat -0.6 231.85 -0.63
+w 0.6
+c shot 09_recorder_tag
+c use
+l 磁带 放进录音机 6
+w 4
+c shot 10_tape_r1
+w 30
+c shot 11_tape_mid
+w 12
+c shot 12_tape_mimic
+c cmd tp 122 30 1.2
+w 2
+c lookat 122.0 31.04 -0.5
+c use
+w 4
+c shot 13_h3_before
+w 12
+c shot 14_h3_after
+c use
+w 1
+c cmd tp 124.7 20 5.3
+w 2
+c lookat 124.7 20.84 3.6
+c use
+w 7
+c shot 15_g1_copy
+c use
+w 1
+c cmd fp tp pool3
+w 3
+c look -90 5
+w 1
+c shot 16_pool3_east
+c look -140 0
+w 1
+c shot 17_pool3_hole
+c cmd fp tp forest
+w 3
+c cmd fp unlock
+w 26
+c shot 18_exhale
+w 3
+c look 90 0
+c shot 19_exhale_back
+c cmd fp tp cab
+l 电梯 进门 10
+l 电梯 没人按 30
+w 9.5
+c shot 20_cab_stuck
+w 15
+c shot 21_cab_fall
+w 7
+c shot 22_well_door
+c cmd fp tp car
+w 3
+c shot 23_bag_hint
+c lookat 540.55 72.32 -18.4
+c use
+l 冷光棒 5
+w 5.5
+c shot 24_car_hint
+l 807 发车 50
+l 807 到底 40
+w 2
+c shot 25_bottom
+c cmd fp tp dock2
+w 3
+c look 0 0
+c shot 26_dock2
+c cmd fp tp hall2
+w 3
+c shot 27_hall2
+c cmd tp 500.7 4 5.3
+w 2
+c lookat 500.7 4.84 3.6
+c use
+w 6
+c use
+w 1
+c cmd tp 497.5 4 -10.7
+w 2
+c lookat 497.5 4.98 -12.4
+c use
+w 12
+c shot 28_rg2
+c use
+w 1
+c cmd tp 527.2 4 -0.9
+w 2
+c lookat 527.2 4.98 -2.6
+c use
+w 10
+c shot 29_rg7
+c use
+l 花园层原件读完 6
+w 5.6
+c shot 30_pa_above
+w 12
+c shot 31_madness
+w 9
+c shot 32_hands
+l 片尾 20
+w 4
+c shot 33_endcard
+c cmd fp status
+w 2

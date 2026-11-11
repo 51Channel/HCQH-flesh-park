@@ -1,0 +1,100 @@
+w 8
+c shot 00_join
+c cmd fp tp station
+w 4
+c look -90 4
+w 1
+c shot 01_station
+c look -40 2
+w 1
+c shot 02_station_signs
+c cmd fp tp door
+w 3
+c shot 03_door
+c cmd fp jump portal
+w 4
+c look -90 2
+w 1
+c shot 04_portal
+c cmd fp jump mouth
+w 5
+c look -90 28
+w 1
+c shot 05_mouth_down
+c look -90 0
+w 1
+c shot 06_mouth_ahead
+c cmd fp jump throat
+w 5
+c look -90 35
+w 1
+c shot 07_throat_down
+c look 0 0
+w 1
+c shot 08_throat_side
+w 2
+c shot 08b_throat_side_later
+c cmd fp jump squeeze
+w 8
+c look -90 5
+w 1
+c shot 09_squeeze_front
+c look 0 5
+w 1
+c shot 10_squeeze_side
+c cmd fp jump exit
+w 5
+c look -90 40
+w 1
+c shot 11_exit_down
+c cmd fp jump cavity
+w 5
+c look -60 20
+w 1
+c shot 12_cavity
+c look 30 -10
+w 1
+c shot 13_cavity_side
+c cmd fp jump approach
+w 5
+c look -90 15
+w 1
+c shot 14_approach
+c cmd fp tp dock
+w 4
+c look -80 0
+w 1
+c shot 15_dock
+c cmd fp tp hall
+w 4
+c look -70 2
+w 1
+c shot 16_hall
+c look 30 2
+w 1
+c shot 17_hall_window
+c cmd fp tp window
+w 4
+c look 0 -2
+w 1
+c shot 18_window
+c cmd fp tp figure
+w 4
+c look -12 -2
+w 1
+c shot 19_figure
+c cmd fp reset
+w 3
+c cmd fp go
+w 12
+c shot 20_ride_12s
+w 20
+c shot 21_ride_32s
+w 15
+c shot 22_ride_47s
+w 25
+c shot 23_ride_72s
+w 20
+c shot 24_arrived
+s fp status
+w 2

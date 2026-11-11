@@ -1,0 +1,10 @@
+screen=Flesh Park quality
+option.shadowMapResolution=Flashlight shadow resolution
+option.FOG_STEPS=Volumetric fog steps
+option.REFLECT_STEPS=Reflection steps
+option.AO_SAMPLES=Ambient occlusion samples
+option.AO_SAMPLES.comment=0 turns it off
+option.MOTES=Dust motes
+option.HAZE=Glow around lights in fog
+option.FULL_RES_FOG=Full-resolution fog
+option.FULL_RES_FOG.comment=Off computes fog and AO at half resolution: much faster
