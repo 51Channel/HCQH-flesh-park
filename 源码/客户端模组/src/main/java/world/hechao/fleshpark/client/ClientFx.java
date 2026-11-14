@@ -140,6 +140,7 @@ final class ClientFx {
             case "pitch" -> Audio.pitch(a[2], f(a[3]), i(a[4]));
             case "stopall" -> Audio.stopAll();
             case "stat" -> Audio.status();
+            case "slider" -> Audio.slider(a[2], Double.parseDouble(a[3]));
             default -> System.err.println("[血肉公园] 不认识的声音指令：" + a[1]);
         }
     }

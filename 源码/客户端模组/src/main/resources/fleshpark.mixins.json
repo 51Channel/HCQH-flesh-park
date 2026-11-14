@@ -2,7 +2,7 @@
   "required": true,
   "package": "world.hechao.fleshpark.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["CamMouseMixin", "FogMixin", "PhotoMixin", "LeanVertexMixin", "RenderTypeAccess", "RideTickMixin", "ShadowCullMixin", "TextBatchMixin", "TextShadowMixin"],
+  "client": ["CamMouseMixin", "FogMixin", "MusicMixin", "PhotoMixin", "LeanVertexMixin", "RenderTypeAccess", "RideTickMixin", "ShadowCullMixin", "TextBatchMixin", "TextShadowMixin"],
   "injectors": {
     "defaultRequire": 1
   }

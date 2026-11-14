@@ -1,5 +1,7 @@
 package world.hechao.fleshpark.client;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundSource;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL10;
 
@@ -14,12 +16,43 @@ import java.util.Map;
 
 /**
  * 配音和音乐。原版声音要 ogg，这台机器做不出来，所以 wav 直接交给游戏已经开好的 OpenAL。
- * 走的是同一个输出设备，主音量滑块也管得到（它改的是 OpenAL 的听者音量）。音高能实时改，音乐才能慢下来走调。
+ * 音高能实时改，音乐才能慢下来走调。
+ * 这些声音不经过原版的声音引擎，1.21.11 的原版也不再靠 OpenAL 听者音量管主音量，所以音量滑块要自己乘：
+ * 每个频道对应设置里的一个滑块（再乘主音量），每 tick 读一次，拖滑块马上生效。
  */
 final class Audio {
     private static final class Channel {
         int source = -1;
         float gain, gainTarget, gainStep, pitch = 1, pitchTarget = 1, pitchStep;
+        /** 对应设置里哪个滑块。 */
+        SoundSource slider = SoundSource.MASTER;
+        /** 上次真正交给 OpenAL 的音量（频道音量 × 滑块）。 */
+        float applied = -1;
+    }
+
+    /** 频道 → 设置里的滑块。背景音乐跟“音乐”，环境声跟“环境”，广播和人声跟“语音/讲话”，其余只跟主音量。 */
+    private static SoundSource slider(String channel) {
+        return switch (channel) {
+            case "music" -> SoundSource.MUSIC;
+            case "amb", "tapebed", "bus", "moan" -> SoundSource.AMBIENT;
+            case "voice", "tramradio", "tramguide", "busradio", "tv" -> SoundSource.VOICE;
+            default -> SoundSource.MASTER;
+        };
+    }
+
+    private static float volume(SoundSource slider) {
+        try {
+            return Math.max(0, Math.min(1, Minecraft.getInstance().options.getFinalSoundSourceVolume(slider)));
+        } catch (RuntimeException notReady) {
+            return 1;
+        }
+    }
+
+    private static void apply(Channel c) {
+        float v = c.gain * volume(c.slider);
+        if (v == c.applied) return;
+        c.applied = v;
+        AL10.alSourcef(c.source, AL10.AL_GAIN, v);
     }
 
     private static final Map<String, Integer> BUFFERS = new HashMap<>();
@@ -43,7 +76,9 @@ final class Audio {
             c.gainTarget = gain;
             c.gainStep = fadeTicks > 0 ? gain / fadeTicks : 0;
             c.pitch = c.pitchTarget = pitch;
-            AL10.alSourcef(c.source, AL10.AL_GAIN, c.gain);
+            c.slider = slider(channel);
+            c.applied = -1;
+            apply(c);
             AL10.alSourcef(c.source, AL10.AL_PITCH, pitch);
             AL10.alSourcePlay(c.source);
         } catch (RuntimeException | IOException | UnsatisfiedLinkError error) {
@@ -65,13 +100,25 @@ final class Audio {
         c.pitchStep = Math.abs(pitch - c.pitch) / Math.max(1, ticks);
     }
 
+    /** 测试用：改设置里的一个音量滑块（master、music、ambient、voice……），不存盘。测试客户端每次启动都把主音量写成 0。 */
+    static void slider(String name, double value) {
+        for (SoundSource s : SoundSource.values()) {
+            if (s.getName().equals(name)) {
+                Minecraft.getInstance().options.getSoundSourceOptionInstance(s).set(Math.max(0, Math.min(1, value)));
+                return;
+            }
+        }
+        System.err.println("[血肉公园] 没有这个音量滑块：" + name);
+    }
+
     /** 测试用：把现在在放的写进日志。 */
     static void status() {
         StringBuilder b = new StringBuilder("[血肉公园] 声音");
         for (Map.Entry<String, Channel> e : CHANNELS.entrySet()) {
             Channel c = e.getValue();
             int state = c.source < 0 ? 0 : AL10.alGetSourcei(c.source, AL10.AL_SOURCE_STATE);
-            b.append(' ').append(e.getKey()).append('=').append(state == AL10.AL_PLAYING ? "在放" : "没放").append('/').append(c.gain).append('/').append(c.pitch);
+            b.append(' ').append(e.getKey()).append('=').append(state == AL10.AL_PLAYING ? "在放" : "没放").append('/').append(c.gain).append('/').append(c.pitch)
+                    .append('/').append(c.slider.getName()).append('×').append(volume(c.slider));
         }
         b.append(" 已载入 ").append(BUFFERS.keySet());
         System.out.println(b);
@@ -94,12 +141,12 @@ final class Audio {
                 }
                 if (c.gain != c.gainTarget) {
                     c.gain = approach(c.gain, c.gainTarget, c.gainStep);
-                    AL10.alSourcef(c.source, AL10.AL_GAIN, c.gain);
                     if (c.gain == 0 && c.gainTarget == 0) {
                         release(c);
                         continue;
                     }
                 }
+                apply(c);
                 if (c.pitch != c.pitchTarget) {
                     c.pitch = approach(c.pitch, c.pitchTarget, c.pitchStep);
                     AL10.alSourcef(c.source, AL10.AL_PITCH, Math.max(0.05f, c.pitch));

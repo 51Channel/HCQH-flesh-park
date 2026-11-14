@@ -17,5 +17,5 @@ tail -3 $W/session.log
 python3 $L/企划导入工具/驱动.py $S $STEPS
 echo quit >> $S/ctl.txt
 wait
-cp $S/game/screenshots/*.png $OUT/ 2>/dev/null
+cp $S/game/screenshots/*.png(N) $OUT/ 2>/dev/null
 ls $OUT | head -50
