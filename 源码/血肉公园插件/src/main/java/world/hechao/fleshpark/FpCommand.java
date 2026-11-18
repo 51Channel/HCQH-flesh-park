@@ -42,11 +42,11 @@ final class FpCommand implements CommandExecutor, TabCompleter {
             }
             case "reset" -> park.reset();
             case "skip" -> park.story.skipIntro();
-            // 测试用：收尾那台对讲机，不用点直接放
+            // 测试用：收尾那只器材箱直接打开、拿起 DV 放录像，不用对密码
             case "walkie" -> {
-                if (player != null) park.story.playWalkie(player);
+                if (player != null) park.story.dvNow(player);
             }
-            // 导演栏「本轮修改」：传到收尾，从头放一遍对讲机和头盔回放
+            // 导演栏「本轮修改」：传到收尾，从头放一遍开箱、拿 DV、录像回放
             case "replay" -> {
                 if (player == null) return true;
                 park.ride.reset(true);

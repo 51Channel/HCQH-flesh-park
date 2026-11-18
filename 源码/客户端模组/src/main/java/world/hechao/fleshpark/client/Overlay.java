@@ -136,7 +136,7 @@ final class Overlay {
 
     private static boolean tapeHidden;
 
-    /** 搜救二队老周头盔上的记录仪：2007 年 7 月 7 日凌晨那一段。null 是没在放，不然是开头那一秒（时:分:秒）。 */
+    /** 搜救二队老周那台 DV 拍的录像：2007 年 7 月 7 日凌晨那一段。-1 是没在放，不然是开头那一秒（时:分:秒）。 */
     private static int helmetSec = -1;
     private static long helmetAt;
 
@@ -156,29 +156,53 @@ final class Overlay {
         return helmetSec >= 0;
     }
 
-    /** 头盔记录仪：画质差，四角压暗，满屏噪点，左上 REC，左下 2007 年那晚的钟。 */
+    /**
+     * 老周那台 DV 放出来的录像：4:3 的画面（两边黑边），画质差、四角压暗、有噪点；左上 ▶ PLAY，右上电量格一闪一闪，
+     * 左下磁带计数，右下 DV 自己打的日期时间。刚开始放那半秒是蓝屏。
+     */
     private static void drawHelmet(GuiGraphics g, Font font, int w, int h) {
-        long ms = now();
-        tint(g, w, h, 0x10140A, 0.18f);
-        for (int y = 0; y < h; y += 2) g.fill(0, y, w, y + 1, 0x1A000000);
-        int edge = 0xB0000000;
-        g.fillGradient(0, 0, w, h / 4, edge, 0);
-        g.fillGradient(0, h - h / 4, w, h, 0, edge);
-        for (int x = 0; x < w / 8; x += 2) {
-            int a = (int) (0xA0 * (1 - x / (w / 8f)));
-            g.fill(x, 0, x + 2, h, a << 24);
-            g.fill(w - x - 2, 0, w - x, h, a << 24);
+        long ms = now(), since = ms - helmetAt;
+        int pw = Math.min(w, h * 4 / 3), px = (w - pw) / 2;
+        if (since < 600) {
+            g.fill(0, 0, w, h, 0xFF000000);
+            g.fill(px, 0, px + pw, h, 0xFF1E3FA8);
+            g.drawString(font, "▶ PLAY", px + 16, 14, 0xFFFFFBF5, true);
+            return;
         }
-        for (int i = 0; i < 260; i++) {
-            int x = RND.nextInt(w), y = RND.nextInt(h);
-            g.fill(x, y, x + 1, y + 1, RND.nextBoolean() ? 0x30FFFFFF : 0x40000000);
+        tint(g, w, h, 0x10140A, 0.16f);
+        for (int y = 0; y < h; y += 2) g.fill(0, y, w, y + 1, 0x16000000);
+        int edge = 0x90000000;
+        g.fillGradient(0, 0, w, h / 5, edge, 0);
+        g.fillGradient(0, h - h / 5, w, h, 0, edge);
+        for (int i = 0; i < 220; i++) {
+            int x = px + RND.nextInt(pw), y = RND.nextInt(h);
+            g.fill(x, y, x + 1, y + 1, RND.nextBoolean() ? 0x2CFFFFFF : 0x3C000000);
         }
-        if (ms / 600 % 2 == 0) g.fill(12, 12, 18, 18, RED);
-        g.drawString(font, "REC", 22, 11, 0xCCFFFBF5, false);
-        g.drawString(font, "搜救二队  CH2  周", 48, 11, 0x99FFFBF5, false);
-        int sec = helmetSec + (int) ((ms - helmetAt) / 1000);
-        String clock = String.format("2007.07.07  %02d:%02d:%02d", sec / 3600 % 24, sec / 60 % 60, sec % 60);
-        g.drawString(font, clock, 12, h - 17, 0xCCFFFBF5, false);
+        // 偶尔一条横着的雪花带往下走：磁带有伤
+        if (ms / 3000 % 3 == 0) {
+            int band = (int) (ms / 8 % (h + 40)) - 20;
+            for (int i = 0; i < 90; i++) g.fill(px + RND.nextInt(pw), band + RND.nextInt(6), px + RND.nextInt(pw), band + RND.nextInt(6) + 1, 0x40FFFFFF);
+        }
+        g.fill(0, 0, px, h, 0xFF000000);
+        g.fill(px + pw, 0, w, h, 0xFF000000);
+        int white = 0xEEFFFBF5;
+        g.drawString(font, "▶ PLAY", px + 16, 14, white, true);
+        g.drawString(font, "SP", px + 16, 26, 0xAAFFFBF5, true);
+        // 电量：只剩一格，一闪一闪
+        int bx = px + pw - 40, by = 14;
+        g.fill(bx, by, bx + 22, by + 1, white);
+        g.fill(bx, by + 9, bx + 22, by + 10, white);
+        g.fill(bx, by, bx + 1, by + 10, white);
+        g.fill(bx + 21, by, bx + 22, by + 10, white);
+        g.fill(bx + 22, by + 3, bx + 24, by + 7, white);
+        if (ms / 500 % 2 == 0) g.fill(bx + 2, by + 2, bx + 7, by + 8, 0xFFD74735);
+        int sec = helmetSec + (int) (since / 1000);
+        int run = 47 * 60 + 12 + (int) (since / 1000);
+        g.drawString(font, String.format("%d:%02d:%02d", run / 3600, run / 60 % 60, run % 60), px + 16, h - 22, white, true);
+        int hour = sec / 3600 % 24;
+        String day = "2007. 7. 7", time = String.format("%s %d:%02d:%02d", hour < 12 ? "AM" : "PM", hour % 12 == 0 ? 12 : hour % 12, sec / 60 % 60, sec % 60);
+        g.drawString(font, day, px + pw - 16 - font.width(day), h - 34, white, true);
+        g.drawString(font, time, px + pw - 16 - font.width(time), h - 22, white, true);
         if (ms > nextGlitch) {
             nextGlitch = ms + 2500 + RND.nextInt(4000);
             glitch(2 + RND.nextInt(4));
@@ -770,16 +794,19 @@ final class Overlay {
 
     private static void drawEnd(GuiGraphics g, Font font, int w, int h) {
         float t = (now() - endAt) / 1000f;
-        if (t > 13.5f) {
+        if (t > 19f) {
             endAt = -1;
             return;
         }
-        float fade = t > 12f ? (13.5f - t) / 1.5f : 1;
-        if (fade < 1) {
-            tint(g, w, h, 0, fade);
+        tint(g, w, h, 0, 1);
+        // 打分那一屏放到 10.5 秒，一秒暗下去，黑一会儿，出"未完待续"
+        if (t > 11.5f) {
+            float in = Math.min(1, (t - 12.2f) / 0.6f), out = t > 17.5f ? (19f - t) / 1.5f : 1;
+            if (in * out < 0.03f) return;
+            String more = "未完待续";
+            big(g, font, more, (w - font.width(more) * 3) / 2, h / 2 - 14, 3, alphaOf(PAPER, in * out), false);
             return;
         }
-        tint(g, w, h, 0, 1);
         String ask = "您对本视频满意吗？";
         big(g, font, ask, (w - font.width(ask) * 2) / 2, h / 2 - 62, 2, PAPER, false);
         int size = 30, gap = 8, x0 = (w - size * 5 - gap * 4) / 2, y0 = h / 2 - 28;
@@ -804,6 +831,7 @@ final class Overlay {
             String c = "改编自 Trevor Roberts 的虚构作品 Mystery Flesh Pit National Park，纯属虚构。";
             g.drawString(font, c, (w - font.width(c)) / 2, h - 18, 0xFF7A736C, false);
         }
+        if (t > 10.5f) tint(g, w, h, 0, Math.min(1, t - 10.5f));
     }
 
     // ---------- 零件 ----------

@@ -547,6 +547,7 @@ final class Story {
         if (!kitTaken) fx.send(p, "tag kit|-27.35|" + (ParkPlan.FLOOR_STATION + 1.45) + "|5.3|0|体验官 #0011 · 手电和手机");
         if (tapeState == 0) fx.send(p, "tag tape|" + (TAPE_AT[0] + 0.13) + "|" + (TAPE_AT[1] + 0.05 + TAG_ABOVE) + "|" + (TAPE_AT[2] + 0.08) + "|1|磁带 · 813");
         if (tapeState == 1) fx.send(p, "tag recorder|" + (RECORDER_AT[0] + 0.15) + "|" + (RECORDER_AT[1] + 0.12 + TAG_ABOVE) + "|" + (RECORDER_AT[2] + 0.12) + "|1|行车录音机");
+        dvTags(p);
     }
 
     private void dropTag(Player p, String id) {
@@ -1304,7 +1305,7 @@ final class Story {
     /** 车和路灯的光：车里的顶灯，往前照的车灯；路灯经过的时候，光从车窗扫进来。 */
     void addLights(java.util.Map<Long, Integer> desired) {
         // 入场片和收尾：镜头带着一盏主光走，像拍片子的灯，不然地底下黑得什么都看不见
-        // 收尾：水里那台对讲机的录音灯照着一小圈水面
+        // 收尾：器材箱旁边那根冷光棒照着一小圈；举着 DV 的时候小屏幕照着脸
         if (replayOn && player != null) {
             // 老周的头灯：跟着镜头走，往前照一道
             Location eye = player.getEyeLocation();
@@ -1322,7 +1323,11 @@ final class Story {
                 desired.merge(Lights.key((int) Math.floor(at.getX() + f.getX()), at.getBlockY(), (int) Math.floor(at.getZ() + f.getZ())), 7, Math::max);
             }
         }
-        if (walkieAt != null && walkieState >= 1) desired.merge(Lights.key((int) Math.floor(walkieAt[0]), (int) Math.floor(walkieAt[1]) + 1, (int) Math.floor(walkieAt[2])), 5, Math::max);
+        if (dvState >= 1) desired.merge(Lights.key((int) Math.floor(BOX_X0 + BOX_W + 0.2), Well.REAL_GARDEN + 1, (int) Math.floor(BOX_Z0 + BOX_L + 0.1)), 6, Math::max);
+        if (dvState == 3 && !replayOn && player != null) {
+            Location eye = player.getEyeLocation();
+            desired.merge(Lights.key(eye.getBlockX(), eye.getBlockY(), eye.getBlockZ()), 9, Math::max);
+        }
         if (cineOn && player != null) {
             Location eye = player.getEyeLocation();
             org.bukkit.util.Vector dir = eye.getDirection();
@@ -2738,9 +2743,11 @@ final class Story {
 
     private void resetWell() {
         inWell = cabSlipped = carRiding = carDown = sticksThrown = madness = handsGrey = lookedUp = crouchHinted = endingDue = false;
-        walkieState = 0;
-        walkieLed = null;
-        walkieAt = null;
+        dvState = 0;
+        dv = null;
+        dvLid = null;
+        dvEye = null;
+        java.util.Arrays.fill(dialText, null);
         replayOn = false;
         crowd.clear();
         rescuers.clear();
@@ -3370,22 +3377,26 @@ final class Story {
     private static final int HINT_WAIT = 800;
 
     /**
-     * 第五关怎么收：花园层那三张原件（留言卡、就诊登记、林静的录音带标签）都读完，跟前的水面上漂着搜救二队的对讲机。
-     * 点它放最后录下的一段；放完，井口上面隐隐约约传下来林静的声音（上面那座楼在照着那一晚播停电广播），然后疯。
+     * 第五关怎么收：楼梯下来那张野餐桌上，一直摆着搜救二队一只橙色的器材箱，旁边扔着一根还亮着的冷光棒，箱子挂着三位数的密码锁。
+     * 花园层三张原件（留言卡、就诊登记、林静的录音带标签）右下角各用红笔圈着一个数：7、0、4。对上密码，箱盖弹开，里面是老周的 DV。
+     * 拿起来，翻开侧屏，按播放，镜头推进小屏幕里：放的就是他拍下的最后一段。放完 DV 掉进水里，井口上面隐隐约约传下来林静的声音，然后疯。
      */
     private static final List<String> LAST_ORIGINALS = List.of("rg1", "rg2", "rg7");
+    private static final int[] CODE = {7, 0, 4};
     private boolean endingDue;
 
     private void maybeEnd(Player p) {
         if (endingDue || madness || !read.containsAll(LAST_ORIGINALS)) return;
         endingDue = true;
-        Bukkit.getLogger().info("花园层原件读完，收尾");
-        after(60, () -> walkieIn(p));
+        Bukkit.getLogger().info("花园层原件读完");
+        after(HINT_WAIT, () -> {
+            if (dvState == 1 && !madness) fx.send(p, "sub 提示|三张纸角上圈着的数，凑起来是三位。|80");
+        });
     }
 
-    // ---------- 收尾：搜救二队的对讲机 ----------
+    // ---------- 收尾：搜救二队的器材箱、老周的 DV ----------
 
-    /** 对讲机录音的字幕：开始(tick)、长度(tick)、谁、字幕。客户端资源 生成对讲机录音.py 写的；第一行 total 是整段多长。 */
+    /** 录像的字幕：开始(tick)、长度(tick)、谁、字幕。客户端资源 生成对讲机录音.py 写的；第一行 total 是整段多长。 */
     // 先声明长度、后读文件：反过来的话 loadWalkie 写进去的长度会被这里的初始值盖回 1600
     private static int walkieTotal = 1600;
     private static final List<String[]> WALKIE = loadWalkie();
@@ -3401,65 +3412,207 @@ final class Story {
                 else if (f.length >= 4) rows.add(f);
             }
         } catch (java.io.IOException e) {
-            Bukkit.getLogger().warning("对讲机录音的字幕读不到：" + e);
+            Bukkit.getLogger().warning("录像的字幕读不到：" + e);
         }
         return rows;
     }
 
-    /** 0 没有，1 漂在水里一闪一闪，2 在放，3 放完了。 */
-    private int walkieState;
-    private BlockDisplay walkieLed;
-    private double[] walkieAt;
+    /** 0 还没摆，1 锁着，2 开了、DV 躺在里面，3 拿起来在放，4 放完了。 */
+    private int dvState;
+    private final int[] dials = new int[3];
+    private final TextDisplay[] dialText = new TextDisplay[3];
+    private BlockDisplay dvLid;
+    private Camcorder dv;
+    /** 拿着 DV 看的时候人站在哪（脚下）、镜头摆在哪。 */
+    private Location dvEye;
+    private String dvHold;
 
-    /**
-     * 花园层三张原件读完：跟前的水面上沙沙响，漂着一台橙色的对讲机，"搜救二队"，录音灯一闪一闪。
-     * 7 月 6 日搜救二队上去取绳，第二天凌晨五个人接上绳下到了底，没再上去。这是那台对讲机自动录下的最后一段。
-     */
-    private void walkieIn(Player p) {
-        if (walkieState != 0) return;
-        Location eye = p.getEyeLocation();
-        double[] q = null;
-        for (double[] at : new double[][]{{0, 2.4}, {-25, 2.4}, {25, 2.4}, {0, 3.2}, {-50, 2.2}, {50, 2.2}}) {
-            q = spotAt(eye, at[0], at[1]);
-            if (q != null) break;
+    /** 器材箱：摆在楼梯下来那张野餐桌（505, 0）上，背面朝西、锁朝东，对着下楼梯的人。 */
+    private static final double BOX_X0 = 505.49, BOX_Z0 = 0.39, BOX_W = 0.46, BOX_L = 0.72, BOX_H = 0.24;
+    private static final double BOX_Y = Well.REAL_GARDEN + 0.80, LOCK_Z = BOX_Z0 + BOX_L / 2;
+    /** 看 DV 的地方：桌子东边，朝西。 */
+    private static final double DV_EX = 507.25, DV_EZ = LOCK_Z;
+    private static final float DV_YAW = 90f, DV_PITCH = 12f;
+
+    private void dvBoxIn() {
+        dvState = 1;
+        java.util.Arrays.fill(dials, 0);
+        double x0 = BOX_X0, y0 = BOX_Y, z0 = BOX_Z0, w = BOX_W, l = BOX_L, h = BOX_H, t = 0.03;
+        String orange = "minecraft:orange_concrete", black = "minecraft:black_concrete";
+        // 箱底和四面：空心的，开了盖看得见里面
+        box(orange, x0, y0, z0, w, t, l, -1);
+        box(orange, x0, y0, z0, t, h, l, -1);
+        box(orange, x0 + w - t, y0, z0, t, h, l, -1);
+        box(orange, x0, y0, z0, w, h, t, -1);
+        box(orange, x0, y0, z0 + l - t, w, h, t, -1);
+        // 里面垫着厚厚一层灰海绵，DV 嵌在上面，开了盖站着就看得见
+        box("minecraft:gray_wool", x0 + t, y0 + t, z0 + t, w - 2 * t, 0.1, l - 2 * t, -1);
+        // 两个黑搭扣，中间一块黑底板上三个拨轮
+        box(black, x0 + w, y0 + h - 0.1, z0 + 0.07, 0.015, 0.12, 0.05, -1);
+        box(black, x0 + w, y0 + h - 0.1, z0 + l - 0.12, 0.015, 0.12, 0.05, -1);
+        box(black, x0 + w, y0 + 0.05, LOCK_Z - 0.15, 0.012, 0.13, 0.30, -1);
+        // 箱盖：合页在背面上沿，绕 z 轴往上掀
+        dvLid = box(orange, x0, y0 + h, z0, w, 0.05, l, -1);
+        // 箱子跟前桌上扔着一根冷光棒，还亮着
+        box("minecraft:lime_concrete", x0 + w + 0.08, y0 + 0.002, z0 + 0.06, 0.18, 0.03, 0.03, 15);
+        for (int i = 0; i < 3; i++) {
+            // 人站在箱子东边朝西看，左手边是 +z：第一位在最南边
+            double z = LOCK_Z + (1 - i) * 0.09;
+            TextDisplay d = world.spawn(new Location(world, x0 + w + 0.014, y0 + 0.064, z, -90f, 0f), TextDisplay.class, e -> {
+                e.setPersistent(false);
+                e.text(Component.text("0", TextColor.color(0x24211F)));
+                e.setBackgroundColor(Color.fromARGB(255, 0xE6, 0xDC, 0xC8));
+                e.setShadowed(false);
+                e.setBrightness(new Display.Brightness(9, 9));
+                e.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(0.42f, 0.42f, 0.42f), new AxisAngle4f()));
+            });
+            scene.add(d);
+            dialText[i] = d;
         }
-        if (q == null) q = new double[]{eye.getX() + eye.getDirection().getX() * 1.5, Well.REAL_GARDEN, eye.getZ() + eye.getDirection().getZ() * 1.5};
-        double x = q[0], y = Well.REAL_GARDEN + 0.33, z = q[2];
-        walkieAt = new double[]{x, y, z};
-        walkieState = 1;
-        // 橙色的壳子平躺在水面上，一根黑天线，上面一块灰的喇叭网，一颗红灯，一张白标签
-        box("minecraft:orange_concrete", x - 0.07, y, z - 0.19, 0.14, 0.06, 0.38, 7);
-        box("minecraft:black_concrete", x - 0.012, y + 0.02, z - 0.33, 0.024, 0.024, 0.15, 5);
-        box("minecraft:gray_concrete", x - 0.05, y + 0.06, z - 0.12, 0.1, 0.004, 0.14, 6);
-        box("minecraft:white_concrete", x - 0.05, y + 0.06, z + 0.06, 0.1, 0.004, 0.08, 8);
-        walkieLed = box("minecraft:red_concrete", x + 0.03, y + 0.06, z - 0.17, 0.025, 0.012, 0.025, 15);
-        Interaction hit = interaction(x, y - 0.15, z, 0.7f, 0.4f);
-        park.onClick(hit, this::playWalkie);
-        fx.send(p, "tag walkie|" + x + "|" + (y + 0.15 + TAG_ABOVE) + "|" + z + "|0|搜救二队 · 对讲机");
-        // 一阵一阵的沙沙声，就在跟前
-        fx.play(p, "walkiebed", "radio_static", 0.22f, 0.8f, true, 10);
-        sound(p, "block.note_block.bit", 0.3f, 0.6f);
-        Bukkit.getLogger().info(String.format("对讲机 在 %.2f %.2f %.2f", x, y, z));
-        after(400, () -> {
-            if (walkieState == 1) fx.send(p, "sub 提示|水里有东西在响。|60");
+        // DV 躺在海绵上
+        dv = new Camcorder(world, new Location(world, x0 + w / 2, y0 + t + 0.1, z0 + l / 2 - 0.06), new Quaternionf(), scene);
+        // 点锁：拨正对着的那一位；点箱子别处：锁着就说锁着，开了就拿 DV
+        Interaction lock = interaction(x0 + w + 0.02, y0 + 0.04, LOCK_Z, 0.32f, 0.17f);
+        park.onClick(lock, p -> {
+            if (dvState == 1) turnDial(p);
+            else if (dvState == 2) pickDv(p);
+        });
+        Interaction whole = interaction(x0 + w / 2, y0 - 0.02, z0 + l / 2, 0.74f, 0.42f);
+        park.onClick(whole, p -> {
+            if (dvState == 1) fx.send(p, "sub 提示|锁着。三位数的密码锁。|50");
+            else if (dvState == 2) pickDv(p);
+        });
+        if (player != null) dvTags(player);
+        Bukkit.getLogger().info("器材箱 摆好");
+    }
+
+    private void dvTags(Player p) {
+        if (dvState == 1) fx.send(p, "tag dvbox|" + (BOX_X0 + BOX_W / 2) + "|" + (BOX_Y + BOX_H + TAG_ABOVE) + "|" + LOCK_Z + "|0|搜救二队 · 器材箱");
+        if (dvState == 2) fx.send(p, "tag dv|" + (BOX_X0 + BOX_W / 2) + "|" + (BOX_Y + 0.2 + TAG_ABOVE) + "|" + LOCK_Z + "|0|DV · 搜救二队  周");
+    }
+
+    /** 每 tick：车到底了就把箱子摆上（重置以后也会重新摆）。 */
+    private void walkieTick() {
+        if (dvState == 0 && inWell && carDown && world != null) dvBoxIn();
+    }
+
+    /** 拨一位：看着哪一位就拨哪一位，往上加一。 */
+    private void turnDial(Player p) {
+        Location eye = p.getEyeLocation();
+        Vector dir = eye.getDirection();
+        double face = BOX_X0 + BOX_W + 0.014;
+        double z = Math.abs(dir.getX()) > 1e-3 ? eye.getZ() + dir.getZ() * (face - eye.getX()) / dir.getX() : eye.getZ();
+        int i = z > LOCK_Z + 0.045 ? 0 : z < LOCK_Z - 0.045 ? 2 : 1;
+        setDial(i, (dials[i] + 1) % 10);
+        sound(p, "block.tripwire.click_on", 0.6f, 1.7f);
+        if (java.util.Arrays.equals(dials, CODE)) after(6, () -> openBox(p));
+    }
+
+    private void setDial(int i, int v) {
+        dials[i] = v;
+        if (dialText[i] != null && dialText[i].isValid()) dialText[i].text(Component.text(String.valueOf(v), TextColor.color(0x24211F)));
+    }
+
+    private void openBox(Player p) {
+        if (dvState != 1) return;
+        dvState = 2;
+        dropTag(p, "dvbox");
+        sound(p, "block.iron_trapdoor.open", 0.6f, 1.6f);
+        Bukkit.getLogger().info("器材箱 打开");
+        after(5, () -> {
+            if (dvLid == null || !dvLid.isValid()) return;
+            sound(p, "block.chest.open", 0.5f, 1.2f);
+            dvLid.setInterpolationDelay(0);
+            dvLid.setInterpolationDuration(12);
+            dvLid.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotationZ((float) Math.toRadians(105)), new Vector3f((float) BOX_W, 0.05f, (float) BOX_L), new Quaternionf()));
+        });
+        after(24, () -> {
+            if (dvState == 2) dvTags(p);
         });
     }
 
-    /** 录音灯：没点的时候一闪一闪，放的时候一直亮。 */
-    private void walkieTick() {
-        if (walkieLed == null || !walkieLed.isValid()) return;
-        boolean on = walkieState == 2 || walkieState == 1 && age / 10 % 2 == 0;
-        walkieLed.setBlock(Bukkit.createBlockData(on ? "minecraft:red_concrete" : "minecraft:black_concrete"));
+    /** 导演栏、/fp walkie 用：箱子直接打开、DV 拿起来放。 */
+    void dvNow(Player p) {
+        if (dvState == 0) dvBoxIn();
+        if (dvState == 1) {
+            for (int i = 0; i < 3; i++) setDial(i, CODE[i]);
+            openBox(p);
+            after(40, () -> pickDv(p));
+        } else if (dvState == 2) {
+            pickDv(p);
+        }
     }
 
-    /** 点一下：放最后录下的那一段。放完，上面传下来林静的停电广播，然后疯。 */
-    void playWalkie(Player p) {
-        if (walkieState != 1) return;
-        walkieState = 2;
-        dropTag(p, "walkie");
-        Bukkit.getLogger().info("对讲机 放录音 " + walkieTotal + " tick");
-        sound(p, "block.lever.click", 0.7f, 1.5f);
-        fx.gain(p, "walkiebed", 0f, 10);
+    private static float wrapYaw(float yaw, float near) {
+        float d = (yaw - near) % 360;
+        if (d > 180) d -= 360;
+        if (d < -180) d += 360;
+        return near + d;
+    }
+
+    /**
+     * 拿起 DV 看：镜头低头看着箱子里，DV 举到眼前，侧屏翻开，按播放，屏幕一蓝、一片雪花、有了画面，镜头推进小屏幕里，切进录像。
+     */
+    void pickDv(Player p) {
+        if (dvState != 2 || dv == null) return;
+        dvState = 3;
+        dropTag(p, "dv");
+        Bukkit.getLogger().info("DV 拿起来");
+        p.setGameMode(org.bukkit.GameMode.SPECTATOR);
+        p.setFlySpeed(0f);
+        double ey = Well.REAL_GARDEN + 1.62;
+        dvEye = new Location(world, DV_EX, Well.REAL_GARDEN, DV_EZ, DV_YAW, DV_PITCH);
+        Location eye = p.getEyeLocation();
+        String from = k(eye.getX(), eye.getY(), eye.getZ(), wrapYaw(eye.getYaw(), DV_YAW), eye.getPitch());
+        String look = k(DV_EX, ey, DV_EZ, DV_YAW, 32);
+        dvHold = k(DV_EX, ey, DV_EZ, DV_YAW, DV_PITCH);
+        fx.send(p, "cam 20 " + from + ";" + look);
+        fx.send(p, "camshake 0.2");
+        // 举到眼前：侧屏翻开以后屏幕中间正好落在视线上，离眼睛 0.24 格
+        double yr = Math.toRadians(DV_YAW), pr = Math.toRadians(DV_PITCH);
+        Vector3f fwd = new Vector3f((float) -Math.sin(yr), 0, (float) Math.cos(yr));
+        Vector3f left = new Vector3f((float) Math.cos(yr), 0, (float) Math.sin(yr));
+        Quaternionf q = new Quaternionf().rotationY((float) -yr);
+        Vector3f sc = Camcorder.screenCenter();
+        float dist = 0.24f;
+        Vector3f target = new Vector3f((float) DV_EX, (float) ey, (float) DV_EZ).add(new Vector3f(fwd).mul(dist)).add(0, (float) (-Math.tan(pr) * dist), 0);
+        Vector3f hold = new Vector3f(target).sub(new Vector3f(left).mul(sc.x)).sub(0, sc.y, 0).sub(new Vector3f(fwd).mul(sc.z));
+        Location base = dv.base();
+        hold.sub((float) base.getX(), (float) base.getY(), (float) base.getZ());
+        after(18, () -> {
+            if (dvState != 3) return;
+            sound(p, "item.armor.equip_generic", 0.7f, 1.3f);
+            dv.pose(hold, q, 0, 22);
+            fx.send(p, "cam 22 " + look + ";" + dvHold);
+        });
+        after(44, () -> {
+            dv.open(1, 8);
+            sound(p, "block.wooden_trapdoor.open", 0.45f, 1.9f);
+        });
+        after(58, () -> {
+            sound(p, "block.lever.click", 0.6f, 1.7f);
+            dv.screen("minecraft:blue_concrete", 15);
+        });
+        // 雪花：亮灰、白一闪一闪
+        for (int t = 70; t < 84; t += 2) {
+            boolean white = t % 4 == 0;
+            after(t, () -> dv.screen(white ? "minecraft:white_concrete" : "minecraft:light_gray_concrete", 13));
+        }
+        after(84, () -> {
+            dv.screen("minecraft:gray_concrete", 12);
+            // 推进小屏幕里
+            Vector3f in = new Vector3f((float) DV_EX, (float) ey, (float) DV_EZ).add(new Vector3f(fwd).mul(dist - 0.05f)).add(0, (float) (-Math.tan(pr) * (dist - 0.05f)), 0);
+            fx.send(p, "cam 14 " + dvHold + ";" + k(in.x, in.y, in.z, DV_YAW, DV_PITCH));
+        });
+        after(96, () -> {
+            fx.send(p, "glitch 6");
+            startFootage(p);
+        });
+    }
+
+    /** 放录像：画面换成老周 DV 拍的那一段，声音是 DV 录到的（现场说话、对讲机喇叭里的回话）。 */
+    private void startFootage(Player p) {
+        Bukkit.getLogger().info("DV 放录像 " + walkieTotal + " tick");
         after(10, () -> fx.play(p, "walkie", "walkie_rec", 1f, 1f, false, 0));
         replay(p);
         for (String[] row : WALKIE) {
@@ -3478,15 +3631,54 @@ final class Story {
             }
         }
         int end = 10 + walkieTotal;
-        after(end, () -> {
-            walkieState = 3;
-            sound(p, "block.lever.click", 0.6f, 1.0f);
-        });
+        after(end, () -> dvDone(p));
         after(end + 50, () -> {
             fx.subtitle(p, "广播", "pa_stopped");
             fx.play(p, "voice", "pa_stopped", 0.22f, 0.94f, false, 0);
         });
         after(end + 50 + 150, () -> madness(p));
+    }
+
+    /** 录像回放掐断以后：回到现在，DV 还举在眼前，小屏幕黑着，雪花一闪一闪；拼起来的那句"这边"从 DV 喇叭里出来。 */
+    private void dvHolding(Player p) {
+        p.teleport(dvEye);
+        fx.send(p, "cam 1 " + dvHold);
+        fx.send(p, "camshake 0.2");
+        if (dv == null) return;
+        dv.screen("minecraft:black_concrete", 4);
+        for (int t = 8; t < 10 + walkieTotal - line(39) - lineLen(39); t += 7) {
+            int k = t;
+            after(t, () -> {
+                if (dvState == 3) dv.screen(k % 3 == 0 ? "minecraft:gray_concrete" : "minecraft:black_concrete", 6);
+            });
+        }
+    }
+
+    /** 放完：咔一声屏幕灭了，手一松，DV 掉进水里。人能动了。 */
+    private void dvDone(Player p) {
+        if (dvState != 3) return;
+        dvState = 4;
+        sound(p, "block.lever.click", 0.6f, 1.0f);
+        if (dv != null) dv.screen("minecraft:black_concrete", -1);
+        after(12, () -> {
+            if (dv == null) return;
+            double yr = Math.toRadians(DV_YAW);
+            Vector3f fwd = new Vector3f((float) -Math.sin(yr), 0, (float) Math.cos(yr));
+            Location base = dv.base();
+            Vector3f to = new Vector3f((float) DV_EX, (float) Well.REAL_GARDEN + 0.05f, (float) DV_EZ).add(new Vector3f(fwd).mul(0.45f)).sub((float) base.getX(), (float) base.getY(), (float) base.getZ());
+            dv.pose(to, new Quaternionf().rotationY((float) (-yr + 0.6)).rotateZ(1.4f), 0.6f, 7);
+        });
+        after(19, () -> {
+            sound(p, "entity.generic.splash", 0.5f, 1.3f);
+            p.spawnParticle(Particle.SPLASH, DV_EX - 0.45, Well.REAL_GARDEN + 0.4, DV_EZ, 20, 0.15, 0.05, 0.15, 0.1);
+        });
+        after(24, () -> {
+            fx.send(p, "cam off");
+            fx.send(p, "camshake 0");
+            p.setFlySpeed(0.1f);
+            p.setGameMode(org.bukkit.GameMode.ADVENTURE);
+            if (dvEye != null) p.teleport(dvEye);
+        });
     }
 
     // ---------- 收尾：老周头盔记录仪那一段 ----------
@@ -3540,6 +3732,7 @@ final class Story {
 
     private void replay(Player p) {
         replayOn = true;
+        rescuersSat = false;
         replayBack = p.getLocation();
         p.setGameMode(org.bukkit.GameMode.SPECTATOR);
         p.setFlySpeed(0f);
@@ -3635,6 +3828,7 @@ final class Story {
             rescuers.add(item("fig_rescue_2_sit", 494.8, RF + 1 - SINK, 6.4, 90f));
             rescuers.add(item("fig_rescue_3_sit", 507.4, RF + 1 - SINK, -2.0, 90f));
             for (ItemDisplay d : rescuers) d.setTeleportDuration(40);
+            rescuersSat = true;
         });
         // "这边。这边。"：一屋子人一起转过来，看着镜头
         after(line(37), () -> {
@@ -3725,18 +3919,35 @@ final class Story {
         d.setTransformation(new org.bukkit.util.Transformation(foot.sub(moved), q, new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf()));
     }
 
+    /** 搜救队那几个也坐进人堆以后，跟着一起喘。 */
+    private boolean rescuersSat;
+
+    /**
+     * 一屋子人一起喘：吸气时整个人往后一仰、肩膀胸口撑起来，呼气时塌下去、往前一栽，所有人同一刻；
+     * 坐在水里的，胸口一起一伏，身边的水面跟着一圈圈晃。声音是一屋子人嘴里同一口吸、同一口呼。
+     */
     private void breatheCrowd(Player p, boolean in, float vol) {
         if (!replayOn) return;
-        org.bukkit.util.Transformation big = new org.bukkit.util.Transformation(new org.joml.Vector3f(0, 0.02f, 0), new org.joml.Quaternionf(), new org.joml.Vector3f(1.035f, 1.05f, 1.035f), new org.joml.Quaternionf());
-        org.bukkit.util.Transformation small = new org.bukkit.util.Transformation(new org.joml.Vector3f(), new org.joml.Quaternionf(), new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf());
-        for (ItemDisplay d : crowd) {
+        // 绕屁股（实体原点往下 0.1）转、撑：坐着的人形屁股不挪，上身动
+        org.joml.Vector3f seat = new org.joml.Vector3f(0, -0.1f, 0);
+        org.joml.Quaternionf q = new org.joml.Quaternionf().rotateX((float) Math.toRadians(in ? -11 : 6));
+        org.joml.Vector3f scale = in ? new org.joml.Vector3f(1.08f, 1.14f, 1.08f) : new org.joml.Vector3f(1f, 0.95f, 1f);
+        org.joml.Vector3f t = new org.joml.Vector3f(seat).sub(q.transform(new org.joml.Vector3f(seat).mul(scale)));
+        org.bukkit.util.Transformation pose = new org.bukkit.util.Transformation(t, q, scale, new org.joml.Quaternionf());
+        List<ItemDisplay> all = new ArrayList<>(crowd);
+        if (rescuersSat) all.addAll(rescuers);
+        double water = Well.REAL_GARDEN + 0.38;
+        for (ItemDisplay d : all) {
             if (!d.isValid()) continue;
             d.setInterpolationDelay(0);
             d.setInterpolationDuration(in ? BREATH_IN : BREATH_OUT);
-            d.setTransformation(in ? big : small);
+            d.setTransformation(pose);
+            Location at = d.getLocation();
+            // 坐在水里的（不是长凳上的）：身边水面一起晃一下
+            if (at.getY() < Well.REAL_GARDEN + 0.8) p.spawnParticle(Particle.SPLASH, at.getX(), water, at.getZ(), in ? 5 : 8, 0.22, 0.0, 0.22, 0.0);
         }
-        fx.play(p, "crowd", in ? "breath_in" : "breath_out", vol, 0.62f, false, 0);
-        fx.play(p, "amb", in ? "breath_in" : "breath_out", vol * 0.6f, 0.48f, false, 0);
+        // 人的喘气（客户端资源 生成人群喘气.py）：十八个人叠在一起的一口吸、一口呼。吸和呼各占一个频道，回声尾巴不会被下一口掐掉
+        fx.play(p, in ? "crowdin" : "crowdout", in ? "crowd_in" : "crowd_out", vol, 1f, false, 0);
     }
 
     private void endReplay(Player p) {
@@ -3748,14 +3959,18 @@ final class Story {
         pulled = daliu = null;
         crowd.clear();
         rescuers.clear();
-        fx.send(p, "cam off");
-        fx.send(p, "camshake 0");
         fx.send(p, "helmet off");
         fx.send(p, "glitch 6");
+        Bukkit.getLogger().info("回放 结束");
+        if (dvState == 3 && dvEye != null) {
+            dvHolding(p);
+            return;
+        }
+        fx.send(p, "cam off");
+        fx.send(p, "camshake 0");
         p.setFlySpeed(0.1f);
         p.setGameMode(org.bukkit.GameMode.ADVENTURE);
         if (replayBack != null) p.teleport(replayBack);
-        Bukkit.getLogger().info("回放 结束");
     }
 
     /** 字幕一条最多这么多字：再长一行放不下。 */
@@ -3988,11 +4203,11 @@ final class Story {
         flashCut = 0;
     }
 
-    /** 导演栏「本轮修改」用：从头放一遍收尾对讲机和头盔回放（放过了也能再放）。 */
+    /** 导演栏「本轮修改」用：从头放一遍收尾（箱子打开、拿起 DV、录像回放；放过了也能再放）。 */
     void walkieReplay(Player p) {
         fresh(p);
         jump("ending", p);
-        after(40, () -> playWalkie(p));
+        after(30, () -> dvNow(p));
     }
 
     void jump(String name, Player p) {
@@ -4049,12 +4264,12 @@ final class Story {
                 wellSafe = to.clone();
             }
             case "ending" -> {
-                // 收尾：花园层原件当作都读过，跟前的水里漂着对讲机；放完录音发疯，接片尾
+                // 收尾：花园层原件当作都读过，站在桌上那只器材箱跟前（锁着，密码 704）；拿起 DV 放完录像发疯，接片尾
                 wellReady(p, true);
-                p.teleport(new Location(world, 130 + Well.DX, Well.REAL_GARDEN, 2, -90, 0));
+                if (dvState == 0) dvBoxIn();
                 for (String id : LAST_ORIGINALS) read.add(id);
                 endingDue = true;
-                after(20, () -> walkieIn(p));
+                p.teleport(new Location(world, DV_EX, Well.REAL_GARDEN, DV_EZ, DV_YAW, 28));
             }
             case "bottom", "dock2", "hall2", "window2", "garden2" -> {
                 wellReady(p, true);
