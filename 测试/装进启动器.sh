@@ -3,6 +3,7 @@
 # 看到“检查通过”就是装好了。启动器要先退出。
 R=${0:A:h:h}
 L=${HECHAO_LAUNCHER:-$HOME/cc/黑箱Boss/启动器}
+export HECHAO_GAME_DATA=${HECHAO_GAME_DATA:-${FLESHPARK_WORK:-$HOME/.cache/fleshpark-test}/gamedata}  # 测试用的游戏库，不碰启动器自己的
 F=$L/企划文件/血肉公园
 export DOTNET_ROOT="$HOME/.local/share/hechao-tools/dotnet-10" PATH="$HOME/.local/share/hechao-tools/dotnet-10:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 mkdir -p $R/交付/客户端_mods $R/交付/服务端_plugins $F

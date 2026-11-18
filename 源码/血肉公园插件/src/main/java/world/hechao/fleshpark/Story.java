@@ -3554,6 +3554,8 @@ final class Story {
                 double jx = x + (r.nextDouble() - 0.5) * 0.5, jz = z + (r.nextDouble() - 0.5) * 0.5;
                 if (jx > 503.8 && jz > 3.4) continue;
                 if (jx < 496.2 && jz > -0.6 && jz < 4.4) continue;
+                // 被拽的那个和大刘站的地方空出来
+                if (Math.hypot(jx - 496.9, jz - 2.0) < 1.0 || Math.hypot(jx - PULL_AT[0], jz - PULL_AT[1]) < 0.8) continue;
                 boolean blocked = false;
                 for (double[] t : tables) if (jx > t[0] - 0.9 && jx < t[0] + 2.4 && jz > t[1] - 0.5 && jz < t[1] + 2.0) blocked = true;
                 if (jz < -2.4 && jz > -3.6 && jx > 495.6 && jx < 500.4) blocked = true;
@@ -3576,47 +3578,54 @@ final class Story {
         Bukkit.getLogger().info("回放 人形 " + crowd.size());
         // 二队另外四个：小罗在楼梯口前面，一个在前头拽人，一个站在前面看，一个在桌子边上
         luo = item("fig_rescue_0", 507.0, RF + 1, 4.9, 105f);
-        ItemDisplay pull = item("fig_rescue_1_reach", 495.9, RF + 1, 3.2, face(495.9, 3.2, 496.9, 2.0));
+        // 大刘：凑到那人跟前，先弯腰按着肩膀摇，再半蹲往后坠着拽（见 tug）
+        ItemDisplay pull = item("fig_rescue_1_shake", PULL_AT[0], RF + 1, PULL_AT[1], face(PULL_AT[0], PULL_AT[1], 496.9, 2.0));
+        daliu = pull;
         ItemDisplay look = item("fig_rescue_2", 494.6, RF + 1, 6.6, -70f);
         ItemDisplay side = item("fig_rescue_3", 507.6, RF + 1, -2.2, 120f);
         rescuers.addAll(List.of(luo, pull, look, side));
-        crowd.add(item("fig_tourist_7_sit", 496.9, RF + 1 - SINK, 2.0, 90f));
+        // 被拽的那个：先不跟着一屋子一起鼓（要被拽得晃），"你们听"那句才并进去
+        pulled = item("fig_tourist_7_sit", 496.9, RF + 1 - SINK, 2.0, 90f);
+        tug(p);
 
         fx.send(p, "helmet 03:24:16");
         fx.send(p, "camshake 1");
-        // 一屋子人一起喘：人形一起鼓起来、瘪下去，水里一片喘气声，一开始轻，说到"同步"那句最响
-        int end = line(15) + lineLen(15);
+        // 一屋子人一起喘：人形一起鼓起来、瘪下去，水里一片喘气声。一开始轻，老周说"你们听"以后最响，跟吴医生说话时压下去一点
+        // 句子的序号对应 生成对讲机录音.py 的 LINES（0.5.7）：改了那边的条数或顺序，这里要一起改
+        int end = line(39) + lineLen(39);
         for (int at = 12, i = 0; at < end; at += BREATH_IN + BREATH_OUT, i++) {
             int when = at;
-            float vol = when < line(3) - 20 ? 0.25f : when < line(4) ? 0.75f : 0.5f;
+            float vol = when < line(8) ? 0.25f : when < line(12) ? 0.45f : when < line(14) ? 0.85f : 0.5f;
             after(when, () -> breatheCrowd(p, true, vol));
             after(when + BREATH_IN, () -> breatheCrowd(p, false, vol));
         }
 
         double e = EW;
-        // 0 → 1：下楼梯，小罗在前头，水在底下
-        camSeg(p, 10, line(1), false, k(516.5, 13.1, 6, 90, 30), k(513.5, 10.1, 6, 90, 28), k(510.6, 7.2, 6, 92, 22), k(508.7, e, 5.7, 96, 14));
-        // 1 → 2："人找着了，好多，都坐着呢"：看着一排排背影扫过去
-        camSeg(p, line(1), line(2) - 4, false, k(508.7, e, 5.7, 96, 14), k(508.4, e, 5.2, 68, 10), k(508.1, e, 4.8, 118, 11), k(507.9, e, 4.6, 92, 13));
-        // 2 → 3："叫不醒"：跳到前面，拽人的那个跟前，一张灰脸
-        camSeg(p, line(2) - 4, line(3), true, k(495.3, e - 0.1, 0.7, -38, 24), k(495.2, e - 0.1, 0.9, -46, 22));
-        // 3 → 4："喘气是同步的"：往后退，一排排脸，一起鼓一起瘪
-        camSeg(p, line(3), line(4), false, k(495.2, e - 0.1, 0.9, -46, 22), k(494.2, e, 1.7, -78, 14), k(493.5, e + 0.15, 2.5, -90, 9), k(493.5, e + 0.15, 2.5, -90, 9));
-        // 4 → 7："药？断了几天了？那它是醒着的？"：抬头四处看
-        camSeg(p, line(4), line(7), false, k(493.5, e + 0.15, 2.5, -90, 9), k(493.6, e + 0.1, 2.4, -78, -24), k(493.6, e + 0.1, 2.3, -112, -34), k(493.6, e + 0.1, 2.3, -95, -8));
-        // 7 → 9："那这些人呢？救不了是吧"：又看回那些脸，最后低头看水
-        camSeg(p, line(7), line(9), false, k(493.6, e + 0.1, 2.3, -95, -8), k(494.2, e, 2.4, -88, 17), k(494.3, e - 0.05, 2.4, -90, 56));
-        // 9 → 11："啥楼？井口？"：猛抬头
-        camSeg(p, line(9), line(11) - 4, false, k(494.3, e - 0.05, 2.4, -90, 56), k(494.4, e, 2.4, -90, -50), k(494.5, e, 2.4, -82, -62));
-        // 11 → 12："我们上去。小罗！走了！"：跳到楼梯口，朝上
-        camSeg(p, line(11) - 4, line(12), true, k(508.1, e, 5.7, -90, -6), k(509.4, e + 0.5, 6.0, -90, -14));
-        // 12 → 13："小罗？"：回头，小罗已经坐进人堆里，慢慢走过去
-        camSeg(p, line(12), line(13), false, k(509.4, e + 0.5, 6.0, -90, -14), k(509.4, e + 0.5, 6.0, 25, 4), k(509.2, e + 0.45, 5.9, 95, 10), k(507.6, e, 5.2, 96, 14), k(505.7, e, 4.9, 97, 20));
-        // 13 → 15："队长，这边。""这边。这边。"：所有人转过来，往后一退，然后慢慢坐下去
-        camSeg(p, line(13), line(15), false, k(505.7, e, 4.9, 97, 20), k(505.8, e, 4.9, 95, 17), k(506.4, e, 5.1, 93, 11), k(506.4, e - 0.85, 5.1, 93, 5));
+        // 0 → 2："三队，二队到底了""收到"：下楼梯，小罗在前头，水在底下
+        camSeg(p, 10, line(2), false, k(516.5, 13.1, 6, 90, 30), k(513.5, 10.1, 6, 90, 28), k(510.6, 7.2, 6, 92, 22), k(508.7, e, 5.7, 96, 14));
+        // 2 → 8："队长你来看""有人，好多人""坐了一屋子""活的吗""我看看"：看着一排排背影扫过去
+        camSeg(p, line(2), line(8) - 4, false, k(508.7, e, 5.7, 96, 14), k(508.4, e, 5.2, 68, 10), k(508.1, e, 4.8, 118, 11), k(507.9, e, 4.6, 92, 13));
+        // 8 → 12："大哥？听得见吗？拽不动""脸怎么都是灰的""有气没有""喘着呢"：跳到前面，大刘在拽人，一张灰脸
+        camSeg(p, line(8) - 4, line(12), true, k(495.3, e - 0.1, 0.7, -38, 24), k(495.2, e - 0.1, 0.9, -46, 22));
+        // 12 → 14："都别动。你们听。""怎么都一块儿喘啊"：往后退，一排排脸，一起鼓一起瘪
+        camSeg(p, line(12), line(14), false, k(495.2, e - 0.1, 0.9, -46, 22), k(494.2, e, 1.7, -78, 14), k(493.5, e + 0.15, 2.5, -90, 9), k(493.5, e + 0.15, 2.5, -90, 9));
+        // 14 → 19：叫吴医生，跟她说人的样子："喘气呢？""一块儿喘的"：看着那些脸，慢慢扫
+        camSeg(p, line(14), line(19), false, k(493.5, e + 0.15, 2.5, -90, 9), k(493.5, e + 0.15, 2.6, -72, 11), k(493.6, e + 0.12, 2.4, -104, 10), k(493.6, e + 0.1, 2.4, -90, 8));
+        // 19 → 24："药车四号没到""它醒着呢""它一喘，人就跟着喘"：边听边抬头四处看
+        camSeg(p, line(19), line(24), false, k(493.6, e + 0.1, 2.4, -90, 8), k(493.6, e + 0.1, 2.4, -78, -24), k(493.6, e + 0.1, 2.3, -112, -34), k(493.6, e + 0.1, 2.3, -95, -8));
+        // 24 → 28："那这些人——""别管了""救不了？""老周，上来"：又看回那些脸，最后低头看水
+        camSeg(p, line(24), line(28), false, k(493.6, e + 0.1, 2.3, -95, -8), k(494.2, e, 2.4, -88, 17), k(494.3, e - 0.05, 2.4, -90, 56));
+        // 28 → 29："撤！都撤！"：猛抬头，往人堆边上走
+        camSeg(p, line(28), line(29) - 4, false, k(494.3, e - 0.05, 2.4, -90, 56), k(494.6, e, 2.5, -82, 4), k(495.2, e, 2.0, -100, 2));
+        // 29 → 35："井口这边""游客中心那个楼，又长出来了""窗户都是亮的""先上去再说"：跳到楼梯口，朝上看
+        camSeg(p, line(29) - 4, line(35), true, k(508.1, e, 5.7, -90, -6), k(509.4, e + 0.5, 6.0, -90, -14), k(509.6, e + 0.6, 6.0, -90, -42), k(509.5, e + 0.55, 6.0, -90, -12));
+        // 35 → 36："小罗？"：回头，小罗已经坐进人堆里，慢慢走过去
+        camSeg(p, line(35), line(36), false, k(509.5, e + 0.55, 6.0, -90, -12), k(509.4, e + 0.5, 6.0, 25, 4), k(509.2, e + 0.45, 5.9, 95, 10), k(507.6, e, 5.2, 96, 14), k(505.7, e, 4.9, 97, 20));
+        // 36 → 39："队长，这边。""这边。这边。""小罗你起来"：所有人转过来，往后一退，然后慢慢坐下去
+        camSeg(p, line(36), line(39), false, k(505.7, e, 4.9, 97, 20), k(505.8, e, 4.9, 95, 17), k(506.4, e, 5.1, 93, 11), k(506.4, e - 0.85, 5.1, 93, 5));
 
-        // 往楼梯走的那几秒（镜头朝着楼梯），四个人都坐下了：小罗坐进人堆前头
-        after(line(11) + 4, () -> {
+        // 在楼梯口朝上看的那几秒，四个人都坐下了：小罗坐进人堆前头
+        after(line(29) + 4, () -> {
             if (!replayOn) return;
             for (ItemDisplay d : rescuers) d.remove();
             rescuers.clear();
@@ -3628,7 +3637,7 @@ final class Story {
             for (ItemDisplay d : rescuers) d.setTeleportDuration(40);
         });
         // "这边。这边。"：一屋子人一起转过来，看着镜头
-        after(line(14), () -> {
+        after(line(37), () -> {
             if (!replayOn) return;
             double cx = 506.3, cz = 5.0;
             List<ItemDisplay> all = new ArrayList<>(crowd);
@@ -3642,11 +3651,78 @@ final class Story {
             sound(p, "block.sculk_sensor.clicking", 0.5f, 0.5f);
         });
         // 老周也跟上了：晃得越来越少
-        after(line(14) + 50, () -> fx.send(p, "camshake 0.4"));
-        after(line(15), () -> fx.send(p, "camshake 0.15"));
+        after(line(37) + 50, () -> fx.send(p, "camshake 0.4"));
+        after(line(39), () -> fx.send(p, "camshake 0.15"));
         // "别下来——"掐断：花屏，回到现在，水里只剩那台对讲机
         after(end - 6, () -> fx.send(p, "glitch 16"));
         after(end, () -> endReplay(p));
+    }
+
+    /** 大刘站的地方：被拽那人（496.9, 2.0）的左前方，伸手够得着。 */
+    private static final double[] PULL_AT = {496.42, 2.58};
+    private ItemDisplay daliu, pulled;
+
+    /**
+     * 大刘拽人："大哥？大哥！听得见吗？"弯腰按着肩膀使劲摇，那人跟着晃，头一点反应没有；
+     * "队长，拽不动"换成半蹲往后坠，一下一下往外拽，那人被拽得往前栽一点又沉回去，跟长在地上一样；
+     * 后面"脸怎么是灰的""有气没有"又弯腰凑过去看脸。时间都跟着第 8 句（大刘那句）走。
+     */
+    private void tug(Player p) {
+        int l8 = line(8);
+        // 摇：按着肩膀左右晃，越晃越急
+        for (int t = l8 - 2, i = 0; t < l8 + 44; t += 4, i++) {
+            float side = i % 2 == 0 ? 1 : -1, k = Math.min(1f, 0.55f + i * 0.05f);
+            after(t, () -> {
+                if (!replayOn) return;
+                pose(daliu, 4f, 3.5f * side * k, 4);
+                pose(pulled, 2f, 6.5f * side * k, 4);
+            });
+        }
+        after(l8 + 44, () -> {
+            if (!replayOn) return;
+            pose(daliu, 0, 0, 6);
+            pose(pulled, 0, 0, 10);
+        });
+        // 拽：换成半蹲后仰的姿势，往后猛坠三下；那人往前栽一下，又慢慢沉回去
+        after(l8 + 48, () -> {
+            if (replayOn && daliu.isValid()) daliu.setItemStack(park.modelStack("fig_rescue_1_pull"));
+        });
+        for (int n = 0; n < 3; n++) {
+            int t = l8 + 52 + n * 16;
+            after(t, () -> {
+                if (!replayOn) return;
+                pose(daliu, -11f, 0, 5);
+                pose(pulled, 9f, 0, 5);
+                sound(p, "entity.player.swim", 0.35f, 0.7f);
+            });
+            after(t + 6, () -> {
+                if (!replayOn) return;
+                pose(daliu, -3f, 0, 9);
+                pose(pulled, 0, 0, 10);
+            });
+        }
+        // 撒手，又弯腰凑过去看脸
+        after(l8 + 104, () -> {
+            if (!replayOn || !daliu.isValid()) return;
+            daliu.setItemStack(park.modelStack("fig_rescue_1_shake"));
+            pose(daliu, 0, 0, 1);
+        });
+        // "都别动。你们听。"：那人也跟着一屋子人一起喘
+        after(line(12), () -> {
+            if (replayOn && pulled != null) crowd.add(pulled);
+        });
+    }
+
+    /** 绕脚底转：pitch 正的往前栽、负的往后仰，roll 左右晃（度）；dur 刻里慢慢转过去。 */
+    private static void pose(ItemDisplay d, float pitch, float roll, int dur) {
+        if (d == null || !d.isValid()) return;
+        org.joml.Quaternionf q = new org.joml.Quaternionf().rotateX((float) Math.toRadians(pitch)).rotateZ((float) Math.toRadians(roll));
+        // 人形的脚底在实体原点往下 0.5：绕脚底转，脚不动
+        org.joml.Vector3f foot = new org.joml.Vector3f(0, -0.5f, 0);
+        org.joml.Vector3f moved = q.transform(new org.joml.Vector3f(foot));
+        d.setInterpolationDelay(0);
+        d.setInterpolationDuration(dur);
+        d.setTransformation(new org.bukkit.util.Transformation(foot.sub(moved), q, new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf()));
     }
 
     private void breatheCrowd(Player p, boolean in, float vol) {
@@ -3668,6 +3744,8 @@ final class Story {
         replayOn = false;
         for (ItemDisplay d : crowd) d.remove();
         for (ItemDisplay d : rescuers) d.remove();
+        if (pulled != null) pulled.remove();
+        pulled = daliu = null;
         crowd.clear();
         rescuers.clear();
         fx.send(p, "cam off");
@@ -3908,6 +3986,13 @@ final class Story {
         }
         fx.black(p, 0f, 1);
         flashCut = 0;
+    }
+
+    /** 导演栏「本轮修改」用：从头放一遍收尾对讲机和头盔回放（放过了也能再放）。 */
+    void walkieReplay(Player p) {
+        fresh(p);
+        jump("ending", p);
+        after(40, () -> playWalkie(p));
     }
 
     void jump(String name, Player p) {

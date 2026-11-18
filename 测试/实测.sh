@@ -5,6 +5,7 @@
 # 客户端缓存放在 $FLESHPARK_WORK（默认 ~/.cache/fleshpark-test），第一次要下载客户端，会慢。
 R=${0:A:h:h}
 L=${HECHAO_LAUNCHER:-$HOME/cc/黑箱Boss/启动器}
+export HECHAO_GAME_DATA=${HECHAO_GAME_DATA:-${FLESHPARK_WORK:-$HOME/.cache/fleshpark-test}/gamedata}  # 测试用的游戏库，不碰启动器自己的
 W=${FLESHPARK_WORK:-$HOME/.cache/fleshpark-test}
 S=$W/session/血肉公园
 [[ -f $1 ]] || { echo "找不到步骤文件：$1"; exit 1; }
