@@ -16,7 +16,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
-import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
@@ -24,6 +23,7 @@ import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import world.hechao.fleshpark.core.B;
 import world.hechao.fleshpark.core.Forest;
@@ -1296,9 +1296,33 @@ final class Story {
         return bus != null && bus.hasRider(p);
     }
 
+    /** 807 号车顺着断缆往下滑的时候按蹲键下不了车：车悬在井里，下去就掉进井里了。到底了自己放人下来。 */
+    boolean carHolds(Player p) {
+        return carRiding && car807 != null && car807.root != null && car807.root.getPassengers().contains(p);
+    }
+
     /** 车和路灯的光：车里的顶灯，往前照的车灯；路灯经过的时候，光从车窗扫进来。 */
     void addLights(java.util.Map<Long, Integer> desired) {
         // 入场片和收尾：镜头带着一盏主光走，像拍片子的灯，不然地底下黑得什么都看不见
+        // 收尾：水里那台对讲机的录音灯照着一小圈水面
+        if (replayOn && player != null) {
+            // 老周的头灯：跟着镜头走，往前照一道
+            Location eye = player.getEyeLocation();
+            org.bukkit.util.Vector dir = eye.getDirection();
+            desired.merge(Lights.key(eye.getBlockX(), eye.getBlockY(), eye.getBlockZ()), 10, Math::max);
+            for (int k : new int[]{2, 4, 7}) {
+                Location ahead = eye.clone().add(dir.clone().multiply(k));
+                desired.merge(Lights.key(ahead.getBlockX(), ahead.getBlockY(), ahead.getBlockZ()), k == 2 ? 13 : k == 4 ? 12 : 10, Math::max);
+            }
+            // 另外几个队员的头灯：照在他们前面一点，不打在自己身上（橙衣服一照就发亮）
+            for (ItemDisplay d : rescuers) {
+                if (!d.isValid()) continue;
+                Location at = d.getLocation();
+                org.bukkit.util.Vector f = at.getDirection().setY(0).normalize().multiply(1.8);
+                desired.merge(Lights.key((int) Math.floor(at.getX() + f.getX()), at.getBlockY(), (int) Math.floor(at.getZ() + f.getZ())), 7, Math::max);
+            }
+        }
+        if (walkieAt != null && walkieState >= 1) desired.merge(Lights.key((int) Math.floor(walkieAt[0]), (int) Math.floor(walkieAt[1]) + 1, (int) Math.floor(walkieAt[2])), 5, Math::max);
         if (cineOn && player != null) {
             Location eye = player.getEyeLocation();
             org.bukkit.util.Vector dir = eye.getDirection();
@@ -1542,6 +1566,7 @@ final class Story {
 
     void tick(Player p) {
         age++;
+        walkieTick();
         if (p == null) return;
         player = p;
         for (Task task : new ArrayList<>(tasks)) {
@@ -2673,21 +2698,34 @@ final class Story {
     }
 
     // ---------- 第四关：深井 ----------
-    // 森林那部电梯掉下来，卡在井壁半中间。抬头，上面那座游客中心底下没有地基，是肉根。
-    // 顺着 4 号支撑往下走（井隔一阵喘一口，桁架往下坐），再顺着搜救队的绳梯往下爬（对面井壁上一串头灯跟着你挪），
-    // 扔一根冷光棒，坐 807 号车顺着断缆滑到底，看见底下躺着一整栋楼。井底有护林员那部电梯，里面是第十个体验官的手机。
+    // 森林那部电梯掉下来，卡在喉咙口的井壁里。抬头，上面那座游客中心底下没有地基，是肉根。
+    // 门外起，肉壁上长出一道台阶，贴着井壁一圈一圈螺旋往下。井隔一阵喘一口（整圈肉往里一收，走不动），两处肉箍压下来要蹲着过，
+    // 头顶斜插着 4 号支撑，脚下掉着它的巡检牌；搜救队的绳每一圈在肩膀边上露一截。最后一圈，对面井壁上一串头灯隔着井心跟着你挪。
+    // 台阶到底是一块平台：扔一根冷光棒，坐 807 号车顺着断缆滑出喉咙，看见底下躺着一整栋楼。
     // ---------- 第五关：井底的游客中心 ----------
     // 这座楼不演：没有广播，没有人形站起来。照着第一关的路线再走一遍，找原件。最后是机房里的改进系统，看完那块屏，疯一小段，接片尾。
 
-    private boolean inWell, cabSlipped, carRiding, carDown, sticksThrown, madness, handsGrey, lookedUp;
-    private int breathNext, breathHold, carT, upperPa, cabScore;
+    private boolean inWell, cabSlipped, carRiding, carDown, sticksThrown, madness, handsGrey, lookedUp, crouchHinted;
+    private int breathNext, breathHold, breaths, carT, upperPa, cabScore;
     private String cabScoreAt = "", cabSmsAt = "", parkSmsAt = "", exhaleSmsAt = "";
     private final String[] scoreAt = new String[6];
     private Tram car807;
     private final List<BlockDisplay> headlamps = new ArrayList<>();
     private BlockDisplay stickGlow;
-    private double lampY = Double.NaN;
+    /** 头灯上一次跟着挪的时候，人在哪（x、y、z）。 */
+    private double[] lampAt;
+    /** 正被肉索缠着（第几处，-1 没有）、什么时候缠上的、扯了几下；肉索从井壁哪一点伸出来。 */
+    private int grabbing = -1, grabStart, grabTugs;
+    private double[] grabFrom;
+    /** 正被肉垫吸着脚（第几处，-1 没有）、什么时候吸上的、蹬了几下；吸住时人站在哪。 */
+    private int sucking = -1, suckStart, suckTugs;
+    private Location stuckAt;
+    private final boolean[] grabbed = new boolean[Well.GRAB.length], sucked = new boolean[Well.SUCK.length];
+    private boolean grabHinted, suckHinted;
+    private final List<ItemDisplay> tendril = new ArrayList<>(), pads = new ArrayList<>();
     private Location wellSafe;
+    /** 最后站稳的是第几处落脚的地方；在湿滑的肉块上站了多久（tick）。 */
+    private int safeHold, slipFor;
     /** 井喘一口：多久一次、吸气时停多久（tick）。 */
     private static final int BREATH_EVERY = 460, BREATH_HOLD = 70;
     /** 807 号车顺着断缆往下滑：一共多少 tick。 */
@@ -2699,13 +2737,28 @@ final class Story {
     }
 
     private void resetWell() {
-        inWell = cabSlipped = carRiding = carDown = sticksThrown = madness = handsGrey = lookedUp = endingDue = false;
+        inWell = cabSlipped = carRiding = carDown = sticksThrown = madness = handsGrey = lookedUp = crouchHinted = endingDue = false;
+        walkieState = 0;
+        walkieLed = null;
+        walkieAt = null;
+        replayOn = false;
+        crowd.clear();
+        rescuers.clear();
         bagAt = carHintAt = -1;
-        breathNext = breathHold = carT = upperPa = cabScore = 0;
+        breathNext = breathHold = breaths = carT = upperPa = cabScore = 0;
         cabScoreAt = cabSmsAt = parkSmsAt = exhaleSmsAt = "";
         java.util.Arrays.fill(scoreAt, "");
-        lampY = Double.NaN;
+        lampAt = null;
+        grabbing = sucking = -1;
+        grabFrom = null;
+        stuckAt = null;
+        java.util.Arrays.fill(grabbed, false);
+        java.util.Arrays.fill(sucked, false);
+        grabHinted = suckHinted = false;
+        tendril.clear();
+        pads.clear();
         wellSafe = null;
+        safeHold = slipFor = 0;
         if (car807 != null) car807.remove();
         car807 = null;
         headlamps.clear();
@@ -2714,25 +2767,36 @@ final class Story {
 
     private void buildWell() {
         cabDoors(3, Well.CAB_X, Well.CAB_Y, Well.CAB_Z, false);
-        // 807 号车挂在防水袋平台北边，车门朝着平台
+        // 807 号车挂在最底下那块平台北边，车门朝着平台
         car807 = new Tram(world, plan.route, b -> {
         });
         car807.spawnAt(Well.CAR_FROM[0], Well.CAR_FROM[1], Well.CAR_FROM[2], "807");
         car807.power(false);
-        Interaction carHit = interaction(Well.CAR_FROM[0] + (TramModel.DOOR_X0 + TramModel.DOOR_X1) / 2, Well.CAR_FROM[1], Well.PATH_Z0 - 0.5, 2.0f, 2.4f);
+        Interaction carHit = interaction(Well.CAR_FROM[0] + (TramModel.DOOR_X0 + TramModel.DOOR_X1) / 2, Well.CAR_FROM[1], Well.BAG_Z0 - 0.5, 2.0f, 2.4f);
         park.onClick(carHit, this::boardCar);
+        // 两块楼板上长了一层薄薄的肉：湿的，贴着楼板摊开一大片，踩上去会把脚吸住
+        for (int i : Well.SUCK) {
+            Well.Hold h = Well.HOLDS.get(i);
+            double[] c = h.center();
+            ItemDisplay pad = item("flesh_lump_dark", c[0], c[1] + 0.02, c[2], 0f);
+            pad.setTransformationMatrix(padShape(h.yaw(), 0.05f));
+            pads.add(pad);
+        }
         // 没用完的冷光棒：一捆插在平台角上
         double[] k = Well.STICKS;
         for (int i = 0; i < 5; i++) box("minecraft:lime_concrete", k[0] + i * 0.07, k[1], k[2] + (i % 2) * 0.06, 0.04, 0.42, 0.04, 9);
         Interaction sticks = interaction(k[0] + 0.15, k[1], k[2], 0.6f, 0.6f);
         park.onClick(sticks, this::throwStick);
-        // 对面井壁上那串头灯：五盏，你在绳梯上往下爬它们就往下挪，你停它们就停
+        // 对面井壁上那串头灯：五盏。最后一圈你往下走，它们就隔着井心在你正对面跟着挪，你停它们就停。先挂在最后一圈起点对面的井壁上
+        double[] from = Well.HOLDS.get(Well.LAMPS_FROM).in;
+        double[] start = lampSpot(new double[]{from[0], from[1], from[2]});
         for (int i = 0; i < 5; i++) {
-            BlockDisplay lamp = box("minecraft:ochre_froglight", 473.6, Well.FOOT_Y - 4 - i * 2.2, -24 + i * 2.1, 0.5, 0.36, 0.5, 15);
-            lamp.setTeleportDuration(5);
+            double side = (i - 2) * 0.9;
+            BlockDisplay lamp = box("minecraft:ochre_froglight", start[0] + start[3] * side, start[1] - i * 1.3, start[2] + start[4] * side, 0.5, 0.36, 0.5, 15);
+            lamp.setTeleportDuration(6);
             headlamps.add(lamp);
-            BlockDisplay hat = box("minecraft:yellow_concrete", 473.3, Well.FOOT_Y - 3.6 - i * 2.2, -24.15 + i * 2.1, 0.8, 0.4, 0.8, 4);
-            hat.setTeleportDuration(5);
+            BlockDisplay hat = box("minecraft:yellow_concrete", start[0] - 0.15 + start[3] * side, start[1] + 0.36 - i * 1.3, start[2] - 0.15 + start[4] * side, 0.8, 0.4, 0.8, 4);
+            hat.setTeleportDuration(6);
             headlamps.add(hat);
         }
         // 中庭：几十排折叠椅朝着舞台，横幅还挂着。椅子上没有人，只有东西
@@ -2821,12 +2885,13 @@ final class Story {
         after(200, () -> {
             if (!lookedUp) fx.send(p, "sub 提示|往上看。|60");
         });
-        wellSafe = new Location(world, Well.LEDGE_X0 + 2.5, Well.CAB_Y, -19.5, -90, 0);
+        wellSafe = new Location(world, Well.CAB_X + 5.5, Well.CAB_Y, Well.CAB_Z + 1.5, -90, 0);
+        safeHold = 0;
     }
 
     private void wellAir(Player p, String z) {
         if (z.equals("well")) {
-            fx.fog(p, 10, 70, 1f, "140605", 1f);
+            fx.fog(p, 6, 62, 1f, "120504", 1f);
             amb(p, "wind_hot", 0.32f);
             mus(p, "", 0);
         } else {
@@ -2857,8 +2922,10 @@ final class Story {
     private void wellTick(Player p, Location at) {
         if (!inWell) return;
         double x = at.getX(), y = at.getY(), z = at.getZ();
+        // 脚踩在哪一处上（悬在半空、正往下落的时候是 -1）
+        int hold = ((Entity) p).isOnGround() ? Well.holdAt(x, y, z) : -1;
         // 电梯在身后又往下沉了一截，回不去了
-        if (!cabSlipped && x > Well.LEDGE_X0 + 1.2) {
+        if (!cabSlipped && (x > Well.CAB_X + 5.2 || Math.abs(z - Well.CAB_Z - 1.5) > 3.2)) {
             cabSlipped = true;
             after(20, () -> {
                 sound(p, "block.chain.break", 1f, 0.5f);
@@ -2868,28 +2935,280 @@ final class Story {
             });
         }
         // 抬头看上面那座楼的底
-        if (!lookedUp && at.getPitch() < -50 && y > Well.FOOT_Y) {
+        if (!lookedUp && at.getPitch() < -50 && y > Well.CAB_Y - 12) {
             lookedUp = true;
         }
-        // 上面那座楼的广播隐隐约约传下来
-        if (y > Well.FOOT_Y - 10 && age >= upperPa) {
+        // 上面那座楼的广播隐隐约约传下来，越往下越远，到钢梁那一层就听不见了
+        if (y > 120 && age >= upperPa) {
             upperPa = age + 700 + rnd.nextInt(500);
-            fx.play(p, "voice", "pa_improve", 0.16f, 0.97f, false, 0);
+            fx.play(p, "voice", "pa_improve", (float) (0.05 + 0.11 * (y - 120) / (Well.CAB_Y - 120)), 0.97f, false, 0);
         }
-        boolean onTruss = x >= Well.TRUSS_X0 && x <= Well.TRUSS_X1 + 1 && z > Well.PATH_Z0 && z < Well.PATH_Z1 && y > Well.FOOT_Y - 1;
-        breathTick(p, onTruss);
-        ladderTick(p, at);
+        // 井喘气只在贴着井壁的断楼梯、肉块上（钢梁上没有墙可贴）
+        boolean onWall = !carRiding && !carDown && hold > 0 && hold < Well.BAG && Well.HOLDS.get(hold).kind != 'B';
+        breathTick(p, onWall);
+        lampTick(p, at);
+        crouchTick(p, hold);
+        grabTick(p, at, hold);
+        suckTick(p, at, hold);
+        slipTick(p, at, hold);
         carTick(p);
-        // 万一从哪儿掉下去：回到最后站稳的地方
-        if (!carRiding && !carDown && wellSafe != null && y < Well.BAG_Y - 6 && y > Well.REAL_FLOOR + 8) p.teleport(wellSafe);
-        if (!carRiding && ((org.bukkit.entity.Entity) p).isOnGround() && y > Well.BAG_Y - 1) {
-            if (onTruss || x <= Well.LEDGE_X1 || Math.abs(y - Well.FOOT_Y) < 0.6 || Math.abs(y - Well.BAG_Y) < 0.6) wellSafe = at.clone();
-        }
+        fallTick(p, at, hold);
         bagTick(p, at);
     }
 
-    /** 井喘一口：井壁往里一收，桁架咯吱往下坐一截。吸气的时候走不动，等它呼出去再走。 */
-    private void breathTick(Player p, boolean onTruss) {
+    /**
+     * 踩空了：往下落过 6 格还没踩到东西，就当是落在了下面一处上——黑一下、闷一声，人趴在低一点的那一处上接着走，最多跳过一处。
+     * 还没缠过腿、吸过脚的那一处不跳过。真掉到最底下那块平台下面，回到最后站稳的地方。
+     */
+    private void fallTick(Player p, Location at, int hold) {
+        if (carRiding || carDown) return;
+        if (hold >= 0) {
+            safeHold = hold;
+            wellSafe = at.clone();
+            return;
+        }
+        double y = at.getY();
+        if (wellSafe != null && y < Well.BAG_Y - 6 && y > Well.REAL_FLOOR + 8) {
+            p.teleport(wellSafe);
+            return;
+        }
+        if (safeHold >= Well.BAG || ((Entity) p).isOnGround()) return;
+        Well.Hold from = Well.HOLDS.get(safeHold);
+        // 真往下掉了一段才算踩空（传送过来、还没落地的那一下不算）
+        if (y > from.bottom() - 6 || p.getFallDistance() < 4) return;
+        int to = Math.min(Well.BAG, safeHold + 1);
+        if (to < Well.BAG && !keyHold(to) && Well.HOLDS.get(to).top() > from.bottom() - 4) to++;
+        Well.Hold h = Well.HOLDS.get(to);
+        Bukkit.getLogger().info("掉下去 接住 " + safeHold + "→" + to);
+        safeHold = to;
+        Location land = new Location(world, h.in[0], h.in[1] + 0.05, h.in[2], h.yaw(), 35);
+        p.setVelocity(new Vector());
+        p.setFallDistance(0);
+        p.teleport(land);
+        wellSafe = land.clone();
+        fx.black(p, 1f, 1);
+        after(10, () -> fx.black(p, 0f, 30));
+        sound(p, "entity.player.big_fall", 1f, 0.7f);
+        sound(p, "entity.slime.squish", 0.9f, 0.45f);
+        fx.send(p, "jolt");
+        fx.send(p, "sick 0.4 20");
+    }
+
+    /** 这一处有事还没发生（缠腿、吸脚）：掉下去接住的时候不能跳过它。 */
+    private boolean keyHold(int i) {
+        for (int k = 0; k < Well.GRAB.length; k++) if (Well.GRAB[k] == i && !grabbed[k]) return true;
+        for (int k = 0; k < Well.SUCK.length; k++) if (Well.SUCK[k] == i && !sucked[k]) return true;
+        return false;
+    }
+
+    /** 湿滑的肉块：站上去一会儿，脚底下开始往井心那边滑。别停，接着跳。 */
+    private void slipTick(Player p, Location at, int hold) {
+        boolean on = false;
+        for (int s : Well.SLIP) on |= hold == s;
+        if (!on || grabbing >= 0 || sucking >= 0 || breathHold > 0) {
+            slipFor = 0;
+            return;
+        }
+        if (++slipFor == 1) sound(p, "block.honey_block.step", 0.9f, 0.6f);
+        if (slipFor < 12) return;
+        if (slipFor == 12) Bukkit.getLogger().info("肉块 滑脚 " + hold);
+        Vector out = new Vector(Well.SX - at.getX(), 0, Well.SZ - at.getZ());
+        if (out.lengthSquared() > 1e-6) p.setVelocity(p.getVelocity().add(out.normalize().multiply(0.03)));
+        if (slipFor % 9 == 0) sound(p, "block.honey_block.slide", 0.7f, 0.55f + rnd.nextFloat() * 0.1f);
+    }
+
+    // ---------- 肉会对人有反应：缠腿、吸脚（手电照到就缩是光影里做的） ----------
+
+    /** 落到那一处：前面一点的井壁里扑出来一根肉索，缠住腿往墙里拽。连按左键扯开；不扯，过八秒它自己松开缩回去。 */
+    private void grabTick(Player p, Location at, int hold) {
+        if (grabbing >= 0) {
+            holdGrab(p, at);
+            return;
+        }
+        if (hold < 0 || breathHold > 0 || sucking >= 0 || carRiding || carDown) return;
+        for (int i = 0; i < Well.GRAB.length; i++) {
+            if (grabbed[i] || hold != Well.GRAB[i]) continue;
+            grabbed[i] = true;
+            grabbing = i;
+            grabStart = age;
+            grabTugs = 0;
+            Bukkit.getLogger().info("肉索 缠腿 " + i);
+            // 从前面一点、肩膀边上的井壁里扑出来，人眼角就看得见
+            Well.Hold h = Well.HOLDS.get(hold);
+            double phi = Well.phiNear(at.getX(), at.getZ(), h.midPhi());
+            double[] w = Well.spot(hold, phi + 0.11, 2.2);
+            grabFrom = new double[]{w[0], w[1] + 1.1, w[2]};
+            p.setWalkSpeed(0.03f);
+            sound(p, "entity.slime.squish", 1f, 0.45f);
+            sound(p, "block.honey_block.slide", 1f, 0.5f);
+            sound(p, "entity.warden.tendril_clicks", 0.9f, 0.6f);
+            fx.send(p, "jolt");
+            fx.send(p, "sick 0.45 12");
+            for (int k = 0; k < 6; k++) {
+                ItemDisplay seg = item(k % 2 == 0 ? "flesh_lump" : "flesh_lump_dark", grabFrom[0], grabFrom[1], grabFrom[2], 0f);
+                seg.setTransformationMatrix(new Matrix4f().scale(0.01f));
+                seg.setTeleportDuration(2);
+                tendril.add(seg);
+            }
+            if (!grabHinted) {
+                grabHinted = true;
+                fx.send(p, "sub 提示|被缠住了。连按左键，扯开它。|110");
+            }
+            return;
+        }
+    }
+
+    private void holdGrab(Player p, Location at) {
+        int t = age - grabStart;
+        layTendril(at, Math.min(1, t / 5.0));
+        if (t > 5) {
+            // 往井壁里拽：拽到墙边那圈看不见的墙为止
+            Vector pull = new Vector(grabFrom[0] - at.getX(), 0, grabFrom[2] - at.getZ());
+            double len = pull.length();
+            if (len > 0.7) p.setVelocity(p.getVelocity().multiply(0.5).add(pull.multiply(0.085 / len)));
+            if (t % 11 == 0) sound(p, "entity.slime.squish", 0.6f, 0.4f + rnd.nextFloat() * 0.2f);
+        }
+        if (grabTugs >= 7 || t > 160) releaseGrab(p, grabTugs >= 7);
+    }
+
+    /** 肉索从井壁里那一点弯着伸到腿上：六节，根粗梢细，一直在蠕。reach 是伸出来多少（0 到 1）。 */
+    private void layTendril(Location at, double reach) {
+        double ax = grabFrom[0], ay = grabFrom[1], az = grabFrom[2];
+        double bx = at.getX(), by = at.getY() + 0.35, bz = at.getZ();
+        double cx = (ax + bx) / 2, cy = Math.max(ay, by) + 0.9, cz = (az + bz) / 2;
+        int n = tendril.size();
+        double[] prev = {ax, ay, az};
+        for (int k = 0; k < n; k++) {
+            double s = reach * (k + 1) / n, u = 1 - s;
+            double[] q = {u * u * ax + 2 * u * s * cx + s * s * bx, u * u * ay + 2 * u * s * cy + s * s * by, u * u * az + 2 * u * s * cz + s * s * bz};
+            double dx = q[0] - prev[0], dy = q[1] - prev[1], dz = q[2] - prev[2], len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            ItemDisplay seg = tendril.get(k);
+            if (len > 1e-3) {
+                float r = (float) ((0.36 - 0.2 * k / (double) n) * (1 + 0.15 * Math.sin(age * 0.9 + k * 1.7)));
+                Quaternionf turn = new Quaternionf().rotationTo(1, 0, 0, (float) (dx / len), (float) (dy / len), (float) (dz / len));
+                seg.setInterpolationDelay(0);
+                seg.setInterpolationDuration(2);
+                seg.setTransformationMatrix(new Matrix4f().rotate(turn).scale((float) (len * 1.35), r, r));
+                seg.teleport(new Location(world, (q[0] + prev[0]) / 2, (q[1] + prev[1]) / 2, (q[2] + prev[2]) / 2));
+            }
+            prev = q;
+        }
+    }
+
+    private void releaseGrab(Player p, boolean tore) {
+        Bukkit.getLogger().info(tore ? "肉索 扯开" : "肉索 自己松开");
+        grabbing = -1;
+        if (breathHold == 0) p.setWalkSpeed(0.2f);
+        fx.send(p, "sick 0 20");
+        sound(p, tore ? "block.slime_block.break" : "entity.slime.squish", 1f, tore ? 0.5f : 0.35f);
+        if (tore) sound(p, "entity.player.breath", 0.6f, 0.6f);
+        Location root = new Location(world, grabFrom[0], grabFrom[1], grabFrom[2]);
+        List<ItemDisplay> gone = new ArrayList<>(tendril);
+        tendril.clear();
+        for (ItemDisplay seg : gone) {
+            seg.setTeleportDuration(10);
+            seg.setInterpolationDelay(0);
+            seg.setInterpolationDuration(10);
+            seg.setTransformationMatrix(new Matrix4f().scale(0.01f));
+            seg.teleport(root);
+        }
+        after(12, () -> gone.forEach(Entity::remove));
+    }
+
+    /** 挥一下手：缠着的时候算扯一下。 */
+    void wellSwing(Player p) {
+        if (grabbing < 0) return;
+        grabTugs++;
+        fx.send(p, "jolt");
+        sound(p, "entity.slime.squish", 0.8f, 0.6f + grabTugs * 0.05f);
+    }
+
+    /** 踩上那层肉垫：脚被吸住，走不动，肉垫鼓起来裹住脚。连按空格拔出来；不蹬，过十秒它自己松开。 */
+    private void suckTick(Player p, Location at, int hold) {
+        if (sucking >= 0) {
+            holdSuck(p, at);
+            return;
+        }
+        if (hold < 0 || breathHold > 0 || grabbing >= 0 || carRiding || carDown) return;
+        for (int i = 0; i < Well.SUCK.length; i++) {
+            if (sucked[i] || hold != Well.SUCK[i]) continue;
+            sucked[i] = true;
+            sucking = i;
+            suckStart = age;
+            suckTugs = 0;
+            stuckAt = at.clone();
+            Bukkit.getLogger().info("肉垫 吸脚 " + i);
+            p.setWalkSpeed(0f);
+            sound(p, "block.honey_block.step", 1f, 0.5f);
+            sound(p, "entity.slime.squish", 1f, 0.4f);
+            fx.send(p, "sick 0.3 20");
+            padSwell(i, 0.22f, 10);
+            if (!suckHinted) {
+                suckHinted = true;
+                fx.send(p, "sub 提示|脚被吸住了。连按空格，拔出来。|110");
+            }
+            return;
+        }
+    }
+
+    private void holdSuck(Player p, Location at) {
+        int t = age - suckStart;
+        // 走不了：脚底下挪开了就拉回原地，脸朝哪不动
+        if (Math.hypot(at.getX() - stuckAt.getX(), at.getZ() - stuckAt.getZ()) > 0.25) {
+            Location back = stuckAt.clone();
+            back.setYaw(at.getYaw());
+            back.setPitch(at.getPitch());
+            p.teleport(back);
+        }
+        if (t % 23 == 0) sound(p, "block.honey_block.slide", 0.7f, 0.4f + rnd.nextFloat() * 0.15f);
+        if (suckTugs >= 5 || t > 200) {
+            boolean tore = suckTugs >= 5;
+            Bukkit.getLogger().info(tore ? "肉垫 拔出来" : "肉垫 自己松开");
+            sound(p, "block.slime_block.break", 1f, 0.45f);
+            sound(p, "entity.slime.jump", 0.8f, 0.5f);
+            padSwell(sucking, 0.05f, 14);
+            sucking = -1;
+            stuckAt = null;
+            fx.send(p, "sick 0 20");
+            if (breathHold == 0) p.setWalkSpeed(0.2f);
+        }
+    }
+
+    /** 跳一下：脚被吸着的时候算蹬一下，肉垫跟着一抽。 */
+    void wellJump(Player p) {
+        if (sucking < 0) return;
+        suckTugs++;
+        sound(p, "entity.slime.squish", 0.9f, 0.55f + suckTugs * 0.06f);
+        padSwell(sucking, 0.16f + (suckTugs % 2) * 0.06f, 4);
+    }
+
+    private void padSwell(int i, float h, int ticks) {
+        double yaw = Well.HOLDS.get(Well.SUCK[i]).yaw();
+        for (int k = i; k < i + 1 && k < pads.size(); k++) {
+            ItemDisplay pad = pads.get(k);
+            pad.setInterpolationDelay(0);
+            pad.setInterpolationDuration(ticks);
+            pad.setTransformationMatrix(padShape(yaw, h));
+        }
+    }
+
+    /** 肉垫：一层肉压得很扁，在楼板上摊开一大片，长的那头顺着往下走的方向。吸住脚的时候鼓起来一点。 */
+    private static Matrix4f padShape(double yaw, float h) {
+        double dx = -Math.sin(Math.toRadians(yaw)), dz = Math.cos(Math.toRadians(yaw));
+        return new Matrix4f().rotateY((float) Math.atan2(-dz, dx)).scale(2.6f, h, 1.9f);
+    }
+
+    /** 肉箍那一截：落上去就提示蹲下。 */
+    private void crouchTick(Player p, int hold) {
+        if (crouchHinted || hold != Well.SQUEEZE) return;
+        crouchHinted = true;
+        fx.send(p, "sub 提示|蹲下，钻过去。|80");
+    }
+
+    /** 井喘一口：整圈肉往里一收，脚下那一块跟着一沉，头顶的 4 号支撑、钢梁咯吱响。吸气的时候走不动，等它呼出去再走。 */
+    private void breathTick(Player p, boolean onPath) {
+        // 正被肉缠着、吸着的时候不喘，免得两头都在改走路的速度
+        if (breathHold == 0 && (grabbing >= 0 || sucking >= 0)) return;
         if (breathHold > 0) {
             if (--breathHold == 0) {
                 p.setWalkSpeed(0.2f);
@@ -2898,11 +3217,11 @@ final class Story {
             }
             return;
         }
-        if (!onTruss) {
+        if (!onPath) {
             breathNext = Math.max(breathNext, age + 120);
             return;
         }
-        if (breathNext == 0) breathNext = age + 160;
+        if (breathNext == 0) breathNext = age + 200;
         if (age < breathNext) return;
         breathNext = age + BREATH_EVERY + rnd.nextInt(160);
         breathHold = BREATH_HOLD;
@@ -2912,21 +3231,30 @@ final class Story {
         sound(p, "entity.iron_golem.damage", 0.5f, 0.4f);
         fx.send(p, "jolt");
         fx.send(p, "sick 0.5 10");
-        fx.send(p, "sub 提示|抓稳。|60");
+        if (breaths++ < 2) fx.send(p, "sub 提示|贴着墙，别动。|60");
     }
 
-    /** 绳梯：对面井壁上那串头灯，你爬它就爬，你停它就停。 */
-    private void ladderTick(Player p, Location at) {
-        boolean onLadder = Math.abs(at.getX() - (Well.LADDER_X + 0.5)) < 1.2 && Math.abs(at.getZ() - (Well.LADDER_Z + 0.5)) < 1.2 && at.getY() < Well.FOOT_Y - 0.5 && at.getY() > Well.BAG_Y + 0.5;
-        if (!onLadder) return;
-        if (Double.isNaN(lampY)) lampY = at.getY();
-        double dy = at.getY() - lampY;
-        if (Math.abs(dy) < 0.08) return;
-        lampY = at.getY();
-        for (BlockDisplay lamp : headlamps) {
-            Location l = lamp.getLocation();
-            lamp.teleport(l.add(0, dy, 0));
+    /** 肉块那一段：对面井壁上那串头灯隔着井心在你正对面，比你高一点。你动它就挪，你停它就停。 */
+    private void lampTick(Player p, Location at) {
+        if (headlamps.isEmpty() || sticksThrown || carRiding || carDown) return;
+        if (at.getY() > Well.LAMPS_BELOW || at.getY() < Well.BAG_Y + 1.5 || onBag(at)) return;
+        double[] now = {at.getX(), at.getY(), at.getZ()};
+        if (lampAt != null && Math.abs(now[0] - lampAt[0]) + Math.abs(now[1] - lampAt[1]) + Math.abs(now[2] - lampAt[2]) < 0.15) return;
+        lampAt = now;
+        double[] q = lampSpot(now);
+        for (int i = 0; i < headlamps.size(); i++) {
+            int k = i / 2;
+            boolean hat = i % 2 == 1;
+            double side = (k - 2) * 0.9;
+            headlamps.get(i).teleport(new Location(world, q[0] + q[3] * side - (hat ? 0.15 : 0), q[1] - k * 1.3 + (hat ? 0.36 : 0), q[2] + q[4] * side - (hat ? 0.15 : 0)));
         }
+    }
+
+    /** 人在 at，头灯挂在哪：井心另一边的井壁上，比人眼高一点。返回 x、y、z 和顺着井壁横过去的方向。 */
+    private static double[] lampSpot(double[] at) {
+        double a = Math.atan2(at[2] - Well.SZ, at[0] - Well.SX) + Math.PI, y = at[1] + 3.5;
+        double r = Well.radius(y) - 0.7;
+        return new double[]{Well.SX + Math.cos(a) * r, y, Well.SZ + Math.sin(a) * r, -Math.sin(a), Math.cos(a)};
     }
 
     /** 扔一根冷光棒：绿光往下掉了很久，在很深的地方磕了一下，照出一小片斜着的玻璃，又滚下去灭了。 */
@@ -2936,10 +3264,8 @@ final class Story {
         Bukkit.getLogger().info("冷光棒");
         sound(p, "item.trident.throw", 0.7f, 1.4f);
         Location eye = p.getEyeLocation();
-        org.bukkit.util.Vector dir = eye.getDirection().setY(0).normalize();
-        double sx = eye.getX() + dir.getX() * 1.2, sz = eye.getZ() + dir.getZ() * 1.2;
-        if (Math.abs(sz - Well.PATH_Z0) < 3) sz = Well.PATH_Z0 - 2.5;
-        double startX = sx, startZ = Math.min(sz, Well.PATH_Z0 - 2.5), startY = eye.getY();
+        // 从平台北边扔出去，落进喉咙中间
+        double startX = Math.max(Well.BAG_X0 + 0.5, Math.min(Well.BAG_X1 + 0.5, eye.getX())), startZ = Well.BAG_Z0 - 1.6, startY = eye.getY();
         stickGlow = box("minecraft:lime_concrete", startX, startY, startZ, 0.06, 0.4, 0.06, 15);
         stickGlow.setTeleportDuration(3);
         int fall = 64;
@@ -2949,7 +3275,7 @@ final class Story {
                 if (stickGlow == null || !stickGlow.isValid()) return;
                 double k = tt / (double) fall;
                 double y = startY + (Well.REAL_FLOOR + 6 - startY) * k * k;
-                stickGlow.teleport(new Location(world, startX + (Well.SX - startX) * 0.25 * k, y, startZ + 4 * k));
+                stickGlow.teleport(new Location(world, startX + (Well.SX - startX) * 0.6 * k, y, startZ + (Well.SZ - startZ) * 0.6 * k));
             });
         }
         after(fall + 10, () -> {
@@ -2969,7 +3295,7 @@ final class Story {
         carT = 0;
         Bukkit.getLogger().info("807 发车");
         for (int x = Well.BAG_X0; x <= Well.BAG_X1; x++) for (int y = Well.BAG_Y; y <= Well.BAG_Y + 1; y++) {
-            if (world.getBlockAt(x, y, Well.PATH_Z0 - 1).getType() == Material.BARRIER) world.getBlockAt(x, y, Well.PATH_Z0 - 1).setType(Material.AIR, false);
+            if (world.getBlockAt(x, y, Well.BAG_Z0 - 1).getType() == Material.BARRIER) world.getBlockAt(x, y, Well.BAG_Z0 - 1).setType(Material.AIR, false);
         }
         car807.root.addPassenger(p);
         sound(p, "block.iron_door.close", 1f, 0.6f);
@@ -3019,7 +3345,7 @@ final class Story {
 
     private void bagTick(Player p, Location at) {
         if (carRiding || carDown) return;
-        boolean onBag = ((org.bukkit.entity.Entity) p).isOnGround() && Math.abs(at.getY() - Well.BAG_Y) < 0.6 && at.getX() >= Well.BAG_X0 - 0.5 && at.getX() <= Well.BAG_X1 + 1;
+        boolean onBag = ((org.bukkit.entity.Entity) p).isOnGround() && onBag(at);
         if (bagAt < 0) {
             if (!onBag) return;
             bagAt = age;
@@ -3036,12 +3362,16 @@ final class Story {
         if (carHintAt >= 0 && age > carHintAt + HINT_WAIT) boardCar(p);
     }
 
+    private static boolean onBag(Location at) {
+        return Math.abs(at.getY() - Well.BAG_Y) < 0.6 && at.getX() >= Well.BAG_X0 - 0.5 && at.getX() <= Well.BAG_X1 + 1 && at.getZ() >= Well.BAG_Z0 - 0.5 && at.getZ() <= Well.BAG_Z1 + 1;
+    }
+
     /** 要玩家动手的地方，等多久就自己往下走（tick）。 */
     private static final int HINT_WAIT = 800;
 
     /**
-     * 第五关怎么收：花园层那三张原件（留言卡、就诊登记、林静的录音带标签）都读完，过几秒，
-     * 井口上面隐隐约约传下来林静的声音：上面那座楼在照着那一晚播停电广播。然后接收尾。
+     * 第五关怎么收：花园层那三张原件（留言卡、就诊登记、林静的录音带标签）都读完，跟前的水面上漂着搜救二队的对讲机。
+     * 点它放最后录下的一段；放完，井口上面隐隐约约传下来林静的声音（上面那座楼在照着那一晚播停电广播），然后疯。
      */
     private static final List<String> LAST_ORIGINALS = List.of("rg1", "rg2", "rg7");
     private boolean endingDue;
@@ -3050,16 +3380,381 @@ final class Story {
         if (endingDue || madness || !read.containsAll(LAST_ORIGINALS)) return;
         endingDue = true;
         Bukkit.getLogger().info("花园层原件读完，收尾");
-        after(100, () -> {
+        after(60, () -> walkieIn(p));
+    }
+
+    // ---------- 收尾：搜救二队的对讲机 ----------
+
+    /** 对讲机录音的字幕：开始(tick)、长度(tick)、谁、字幕。客户端资源 生成对讲机录音.py 写的；第一行 total 是整段多长。 */
+    // 先声明长度、后读文件：反过来的话 loadWalkie 写进去的长度会被这里的初始值盖回 1600
+    private static int walkieTotal = 1600;
+    private static final List<String[]> WALKIE = loadWalkie();
+
+    private static List<String[]> loadWalkie() {
+        List<String[]> rows = new ArrayList<>();
+        try (java.io.InputStream in = Story.class.getResourceAsStream("/walkie.txt")) {
+            if (in == null) return rows;
+            for (String line : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\n")) {
+                String[] f = line.split("\t", -1);
+                if (f.length < 2) continue;
+                if (f[0].equals("total")) walkieTotal = Integer.parseInt(f[1]);
+                else if (f.length >= 4) rows.add(f);
+            }
+        } catch (java.io.IOException e) {
+            Bukkit.getLogger().warning("对讲机录音的字幕读不到：" + e);
+        }
+        return rows;
+    }
+
+    /** 0 没有，1 漂在水里一闪一闪，2 在放，3 放完了。 */
+    private int walkieState;
+    private BlockDisplay walkieLed;
+    private double[] walkieAt;
+
+    /**
+     * 花园层三张原件读完：跟前的水面上沙沙响，漂着一台橙色的对讲机，"搜救二队"，录音灯一闪一闪。
+     * 7 月 6 日搜救二队上去取绳，第二天凌晨五个人接上绳下到了底，没再上去。这是那台对讲机自动录下的最后一段。
+     */
+    private void walkieIn(Player p) {
+        if (walkieState != 0) return;
+        Location eye = p.getEyeLocation();
+        double[] q = null;
+        for (double[] at : new double[][]{{0, 2.4}, {-25, 2.4}, {25, 2.4}, {0, 3.2}, {-50, 2.2}, {50, 2.2}}) {
+            q = spotAt(eye, at[0], at[1]);
+            if (q != null) break;
+        }
+        if (q == null) q = new double[]{eye.getX() + eye.getDirection().getX() * 1.5, Well.REAL_GARDEN, eye.getZ() + eye.getDirection().getZ() * 1.5};
+        double x = q[0], y = Well.REAL_GARDEN + 0.33, z = q[2];
+        walkieAt = new double[]{x, y, z};
+        walkieState = 1;
+        // 橙色的壳子平躺在水面上，一根黑天线，上面一块灰的喇叭网，一颗红灯，一张白标签
+        box("minecraft:orange_concrete", x - 0.07, y, z - 0.19, 0.14, 0.06, 0.38, 7);
+        box("minecraft:black_concrete", x - 0.012, y + 0.02, z - 0.33, 0.024, 0.024, 0.15, 5);
+        box("minecraft:gray_concrete", x - 0.05, y + 0.06, z - 0.12, 0.1, 0.004, 0.14, 6);
+        box("minecraft:white_concrete", x - 0.05, y + 0.06, z + 0.06, 0.1, 0.004, 0.08, 8);
+        walkieLed = box("minecraft:red_concrete", x + 0.03, y + 0.06, z - 0.17, 0.025, 0.012, 0.025, 15);
+        Interaction hit = interaction(x, y - 0.15, z, 0.7f, 0.4f);
+        park.onClick(hit, this::playWalkie);
+        fx.send(p, "tag walkie|" + x + "|" + (y + 0.15 + TAG_ABOVE) + "|" + z + "|0|搜救二队 · 对讲机");
+        // 一阵一阵的沙沙声，就在跟前
+        fx.play(p, "walkiebed", "radio_static", 0.22f, 0.8f, true, 10);
+        sound(p, "block.note_block.bit", 0.3f, 0.6f);
+        Bukkit.getLogger().info(String.format("对讲机 在 %.2f %.2f %.2f", x, y, z));
+        after(400, () -> {
+            if (walkieState == 1) fx.send(p, "sub 提示|水里有东西在响。|60");
+        });
+    }
+
+    /** 录音灯：没点的时候一闪一闪，放的时候一直亮。 */
+    private void walkieTick() {
+        if (walkieLed == null || !walkieLed.isValid()) return;
+        boolean on = walkieState == 2 || walkieState == 1 && age / 10 % 2 == 0;
+        walkieLed.setBlock(Bukkit.createBlockData(on ? "minecraft:red_concrete" : "minecraft:black_concrete"));
+    }
+
+    /** 点一下：放最后录下的那一段。放完，上面传下来林静的停电广播，然后疯。 */
+    void playWalkie(Player p) {
+        if (walkieState != 1) return;
+        walkieState = 2;
+        dropTag(p, "walkie");
+        Bukkit.getLogger().info("对讲机 放录音 " + walkieTotal + " tick");
+        sound(p, "block.lever.click", 0.7f, 1.5f);
+        fx.gain(p, "walkiebed", 0f, 10);
+        after(10, () -> fx.play(p, "walkie", "walkie_rec", 1f, 1f, false, 0));
+        replay(p);
+        for (String[] row : WALKIE) {
+            int at = 10 + Integer.parseInt(row[0]), len = Integer.parseInt(row[1]);
+            // 长句一行放不下：按句号拆成几条，按字数分时间，一条接一条出
+            List<String> parts = subParts(row[3]);
+            int total = 0;
+            for (String part : parts) total += part.length();
+            int done = 0;
+            for (int i = 0; i < parts.size(); i++) {
+                String part = parts.get(i);
+                int from = at + len * done / total, to = at + len * (done + part.length()) / total;
+                done += part.length();
+                int show = i == parts.size() - 1 ? to - from + 20 : to - from + 2;
+                after(from, () -> fx.send(p, "sub " + row[2] + "|" + part + "|" + show));
+            }
+        }
+        int end = 10 + walkieTotal;
+        after(end, () -> {
+            walkieState = 3;
+            sound(p, "block.lever.click", 0.6f, 1.0f);
+        });
+        after(end + 50, () -> {
             fx.subtitle(p, "广播", "pa_stopped");
             fx.play(p, "voice", "pa_stopped", 0.22f, 0.94f, false, 0);
         });
-        after(100 + 150, () -> madness(p));
+        after(end + 50 + 150, () -> madness(p));
+    }
+
+    // ---------- 收尾：老周头盔记录仪那一段 ----------
+
+    /**
+     * 录音放的时候，画面换成老周头盔上记录仪拍下的那一段（2007 年 7 月 7 日凌晨）：从大厅的楼梯下到花园层，
+     * 一屋子人坐在水里，全背对着楼梯朝西坐，叫不醒，一起喘气；老周绕到前面看他们的脸，抬头看井口；
+     * 往楼梯走的时候小罗已经坐进人堆里，"这边"一出来，所有人一起转过来看镜头；老周也坐下了，"别下来"掐断，回到现在。
+     * 记录仪是一段一段录的，跳一下（花屏）就是中间没录上的。镜头每段的起点都先把人传送过去，不然一下挪十几格服务端会拽回来。
+     */
+    private boolean replayOn;
+    private Location replayBack;
+    private final List<ItemDisplay> crowd = new ArrayList<>(), rescuers = new ArrayList<>();
+    private ItemDisplay luo;
+    /** 坐在地上的人形往下沉多少：坐姿是照坐椅子雕的，沉下去腿埋进水底，像坐在水里。 */
+    private static final double SINK = 0.42;
+    private static final double RF = Well.REAL_GARDEN, EW = RF + 1.62;
+    /** 一口气多长（tick）：吸 30，呼 36。整屋子都是这个节奏。 */
+    private static final int BREATH_IN = 30, BREATH_OUT = 36;
+
+    /** 录音里第 i 句开始的那一刻（从点下去算，tick）。 */
+    private static int line(int i) {
+        return i < WALKIE.size() ? 10 + Integer.parseInt(WALKIE.get(i)[0]) : 10 + walkieTotal;
+    }
+
+    private static int lineLen(int i) {
+        return i < WALKIE.size() ? Integer.parseInt(WALKIE.get(i)[1]) : 40;
+    }
+
+    private static String k(double x, double eye, double z, double yaw, double pitch) {
+        return String.format(java.util.Locale.ROOT, "%.2f %.2f %.2f %.1f %.1f", x, eye, z, yaw, pitch);
+    }
+
+    /** 从 from 到 to 这一段镜头：起点先把人传过去，再让客户端沿着机位匀速走。cut 是跳一下（记录仪中间没录上）。 */
+    private void camSeg(Player p, int from, int to, boolean cut, String... keys) {
+        after(from, () -> {
+            if (!replayOn) return;
+            String[] f = keys[0].split(" ");
+            p.teleport(new Location(world, Double.parseDouble(f[0]), Double.parseDouble(f[1]) - 1.62, Double.parseDouble(f[2]), Float.parseFloat(f[3]), Float.parseFloat(f[4])));
+            if (cut) {
+                fx.send(p, "glitch 9");
+                sound(p, "block.note_block.hat", 0.25f, 0.5f);
+            }
+            fx.send(p, "cam lin " + Math.max(1, to - from) + " " + String.join(";", keys));
+        });
+    }
+
+    private static float face(double x, double z, double tx, double tz) {
+        return (float) Math.toDegrees(Math.atan2(-(tx - x), tz - z));
+    }
+
+    private void replay(Player p) {
+        replayOn = true;
+        replayBack = p.getLocation();
+        p.setGameMode(org.bukkit.GameMode.SPECTATOR);
+        p.setFlySpeed(0f);
+        java.util.Random r = new java.util.Random(707);
+        // 坐了一屋子：楼梯西边那一半，避开野餐桌和花槽，楼梯口那一块空着
+        double[][] tables = {{500, 3}, {505, 0}, {498, -1}};
+        String[] kinds = {"tourist", "tourist", "tourist", "tourist", "kid", "cook", "guide", "tester"};
+        int[] counts = {60, 60, 60, 60, 10, 6, 6, 11};
+        int n = 0;
+        for (double x = 496.6; x <= 506.4; x += 1.45) {
+            for (double z = -4.3; z <= 10.2; z += 1.55) {
+                double jx = x + (r.nextDouble() - 0.5) * 0.5, jz = z + (r.nextDouble() - 0.5) * 0.5;
+                if (jx > 503.8 && jz > 3.4) continue;
+                if (jx < 496.2 && jz > -0.6 && jz < 4.4) continue;
+                boolean blocked = false;
+                for (double[] t : tables) if (jx > t[0] - 0.9 && jx < t[0] + 2.4 && jz > t[1] - 0.5 && jz < t[1] + 2.0) blocked = true;
+                if (jz < -2.4 && jz > -3.6 && jx > 495.6 && jx < 500.4) blocked = true;
+                if (jz > 8.4 && jz < 9.6 && jx > 501.6 && jx < 506.4) blocked = true;
+                if (blocked) continue;
+                int kind = r.nextInt(kinds.length);
+                String model = "fig_" + kinds[kind] + "_" + r.nextInt(counts[kind]) + "_sit";
+                ItemDisplay d = item(model, jx, RF + 1 - SINK, jz, 90f + (float) ((r.nextDouble() - 0.5) * 18));
+                d.setTeleportDuration(40);
+                crowd.add(d);
+                n++;
+            }
+        }
+        // 野餐桌两边的长凳上也坐着，脸朝桌子
+        for (double[] t : tables) {
+            crowd.add(item("fig_tourist_" + r.nextInt(60) + "_sit", t[0] - 0.25, RF + 1, t[1] + 0.75, -90f));
+            crowd.add(item("fig_tourist_" + r.nextInt(60) + "_sit", t[0] + 1.75, RF + 1, t[1] + 0.75, 90f));
+        }
+        for (ItemDisplay d : crowd) d.setTeleportDuration(40);
+        Bukkit.getLogger().info("回放 人形 " + crowd.size());
+        // 二队另外四个：小罗在楼梯口前面，一个在前头拽人，一个站在前面看，一个在桌子边上
+        luo = item("fig_rescue_0", 507.0, RF + 1, 4.9, 105f);
+        ItemDisplay pull = item("fig_rescue_1_reach", 495.9, RF + 1, 3.2, face(495.9, 3.2, 496.9, 2.0));
+        ItemDisplay look = item("fig_rescue_2", 494.6, RF + 1, 6.6, -70f);
+        ItemDisplay side = item("fig_rescue_3", 507.6, RF + 1, -2.2, 120f);
+        rescuers.addAll(List.of(luo, pull, look, side));
+        crowd.add(item("fig_tourist_7_sit", 496.9, RF + 1 - SINK, 2.0, 90f));
+
+        fx.send(p, "helmet 03:24:16");
+        fx.send(p, "camshake 1");
+        // 一屋子人一起喘：人形一起鼓起来、瘪下去，水里一片喘气声，一开始轻，说到"同步"那句最响
+        int end = line(15) + lineLen(15);
+        for (int at = 12, i = 0; at < end; at += BREATH_IN + BREATH_OUT, i++) {
+            int when = at;
+            float vol = when < line(3) - 20 ? 0.25f : when < line(4) ? 0.75f : 0.5f;
+            after(when, () -> breatheCrowd(p, true, vol));
+            after(when + BREATH_IN, () -> breatheCrowd(p, false, vol));
+        }
+
+        double e = EW;
+        // 0 → 1：下楼梯，小罗在前头，水在底下
+        camSeg(p, 10, line(1), false, k(516.5, 13.1, 6, 90, 30), k(513.5, 10.1, 6, 90, 28), k(510.6, 7.2, 6, 92, 22), k(508.7, e, 5.7, 96, 14));
+        // 1 → 2："人找着了，好多，都坐着呢"：看着一排排背影扫过去
+        camSeg(p, line(1), line(2) - 4, false, k(508.7, e, 5.7, 96, 14), k(508.4, e, 5.2, 68, 10), k(508.1, e, 4.8, 118, 11), k(507.9, e, 4.6, 92, 13));
+        // 2 → 3："叫不醒"：跳到前面，拽人的那个跟前，一张灰脸
+        camSeg(p, line(2) - 4, line(3), true, k(495.3, e - 0.1, 0.7, -38, 24), k(495.2, e - 0.1, 0.9, -46, 22));
+        // 3 → 4："喘气是同步的"：往后退，一排排脸，一起鼓一起瘪
+        camSeg(p, line(3), line(4), false, k(495.2, e - 0.1, 0.9, -46, 22), k(494.2, e, 1.7, -78, 14), k(493.5, e + 0.15, 2.5, -90, 9), k(493.5, e + 0.15, 2.5, -90, 9));
+        // 4 → 7："药？断了几天了？那它是醒着的？"：抬头四处看
+        camSeg(p, line(4), line(7), false, k(493.5, e + 0.15, 2.5, -90, 9), k(493.6, e + 0.1, 2.4, -78, -24), k(493.6, e + 0.1, 2.3, -112, -34), k(493.6, e + 0.1, 2.3, -95, -8));
+        // 7 → 9："那这些人呢？救不了是吧"：又看回那些脸，最后低头看水
+        camSeg(p, line(7), line(9), false, k(493.6, e + 0.1, 2.3, -95, -8), k(494.2, e, 2.4, -88, 17), k(494.3, e - 0.05, 2.4, -90, 56));
+        // 9 → 11："啥楼？井口？"：猛抬头
+        camSeg(p, line(9), line(11) - 4, false, k(494.3, e - 0.05, 2.4, -90, 56), k(494.4, e, 2.4, -90, -50), k(494.5, e, 2.4, -82, -62));
+        // 11 → 12："我们上去。小罗！走了！"：跳到楼梯口，朝上
+        camSeg(p, line(11) - 4, line(12), true, k(508.1, e, 5.7, -90, -6), k(509.4, e + 0.5, 6.0, -90, -14));
+        // 12 → 13："小罗？"：回头，小罗已经坐进人堆里，慢慢走过去
+        camSeg(p, line(12), line(13), false, k(509.4, e + 0.5, 6.0, -90, -14), k(509.4, e + 0.5, 6.0, 25, 4), k(509.2, e + 0.45, 5.9, 95, 10), k(507.6, e, 5.2, 96, 14), k(505.7, e, 4.9, 97, 20));
+        // 13 → 15："队长，这边。""这边。这边。"：所有人转过来，往后一退，然后慢慢坐下去
+        camSeg(p, line(13), line(15), false, k(505.7, e, 4.9, 97, 20), k(505.8, e, 4.9, 95, 17), k(506.4, e, 5.1, 93, 11), k(506.4, e - 0.85, 5.1, 93, 5));
+
+        // 往楼梯走的那几秒（镜头朝着楼梯），四个人都坐下了：小罗坐进人堆前头
+        after(line(11) + 4, () -> {
+            if (!replayOn) return;
+            for (ItemDisplay d : rescuers) d.remove();
+            rescuers.clear();
+            luo = item("fig_rescue_0_sit", 504.1, RF + 1 - SINK, 4.7, 92f);
+            rescuers.add(luo);
+            rescuers.add(item("fig_rescue_1_sit", 495.9, RF + 1 - SINK, 3.2, 90f));
+            rescuers.add(item("fig_rescue_2_sit", 494.8, RF + 1 - SINK, 6.4, 90f));
+            rescuers.add(item("fig_rescue_3_sit", 507.4, RF + 1 - SINK, -2.0, 90f));
+            for (ItemDisplay d : rescuers) d.setTeleportDuration(40);
+        });
+        // "这边。这边。"：一屋子人一起转过来，看着镜头
+        after(line(14), () -> {
+            if (!replayOn) return;
+            double cx = 506.3, cz = 5.0;
+            List<ItemDisplay> all = new ArrayList<>(crowd);
+            all.addAll(rescuers);
+            for (ItemDisplay d : all) {
+                if (!d.isValid()) continue;
+                Location at = d.getLocation();
+                at.setYaw(face(at.getX(), at.getZ(), cx, cz));
+                d.teleport(at);
+            }
+            sound(p, "block.sculk_sensor.clicking", 0.5f, 0.5f);
+        });
+        // 老周也跟上了：晃得越来越少
+        after(line(14) + 50, () -> fx.send(p, "camshake 0.4"));
+        after(line(15), () -> fx.send(p, "camshake 0.15"));
+        // "别下来——"掐断：花屏，回到现在，水里只剩那台对讲机
+        after(end - 6, () -> fx.send(p, "glitch 16"));
+        after(end, () -> endReplay(p));
+    }
+
+    private void breatheCrowd(Player p, boolean in, float vol) {
+        if (!replayOn) return;
+        org.bukkit.util.Transformation big = new org.bukkit.util.Transformation(new org.joml.Vector3f(0, 0.02f, 0), new org.joml.Quaternionf(), new org.joml.Vector3f(1.035f, 1.05f, 1.035f), new org.joml.Quaternionf());
+        org.bukkit.util.Transformation small = new org.bukkit.util.Transformation(new org.joml.Vector3f(), new org.joml.Quaternionf(), new org.joml.Vector3f(1, 1, 1), new org.joml.Quaternionf());
+        for (ItemDisplay d : crowd) {
+            if (!d.isValid()) continue;
+            d.setInterpolationDelay(0);
+            d.setInterpolationDuration(in ? BREATH_IN : BREATH_OUT);
+            d.setTransformation(in ? big : small);
+        }
+        fx.play(p, "crowd", in ? "breath_in" : "breath_out", vol, 0.62f, false, 0);
+        fx.play(p, "amb", in ? "breath_in" : "breath_out", vol * 0.6f, 0.48f, false, 0);
+    }
+
+    private void endReplay(Player p) {
+        if (!replayOn) return;
+        replayOn = false;
+        for (ItemDisplay d : crowd) d.remove();
+        for (ItemDisplay d : rescuers) d.remove();
+        crowd.clear();
+        rescuers.clear();
+        fx.send(p, "cam off");
+        fx.send(p, "camshake 0");
+        fx.send(p, "helmet off");
+        fx.send(p, "glitch 6");
+        p.setFlySpeed(0.1f);
+        p.setGameMode(org.bukkit.GameMode.ADVENTURE);
+        if (replayBack != null) p.teleport(replayBack);
+        Bukkit.getLogger().info("回放 结束");
+    }
+
+    /** 字幕一条最多这么多字：再长一行放不下。 */
+    private static final int SUB_MAX = 22;
+
+    /** 按句号、感叹号、问号拆开，短的并到一起，每条不超过 SUB_MAX 个字。 */
+    private static List<String> subParts(String text) {
+        List<String> sentences = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            cur.append(c);
+            boolean end = c == '。' || c == '！' || c == '？';
+            // 句号后面紧跟着的引号、省略号、破折号算在这一句里
+            while (end && i + 1 < text.length() && "”……—".indexOf(text.charAt(i + 1)) >= 0) cur.append(text.charAt(++i));
+            if (end) {
+                sentences.add(cur.toString());
+                cur.setLength(0);
+            }
+        }
+        if (cur.length() > 0) sentences.add(cur.toString());
+        // 一句太长放不下：按逗号再拆成几段，每段尽量凑满
+        List<String> pieces = new ArrayList<>();
+        for (String sentence : sentences) {
+            if (sentence.length() <= SUB_MAX) {
+                pieces.add(sentence);
+                continue;
+            }
+            StringBuilder seg = new StringBuilder();
+            for (String clause : sentence.split("(?<=，)")) {
+                if (seg.length() > 0 && seg.length() + clause.length() > SUB_MAX) {
+                    pieces.add(seg.toString());
+                    seg.setLength(0);
+                }
+                seg.append(clause);
+            }
+            if (seg.length() > 0) pieces.add(seg.toString());
+        }
+        sentences = pieces;
+        List<String> parts = new ArrayList<>();
+        for (String sentence : sentences) {
+            int last = parts.size() - 1;
+            if (last >= 0 && parts.get(last).length() + sentence.length() <= SUB_MAX) parts.set(last, parts.get(last) + sentence);
+            else parts.add(sentence);
+        }
+        return parts;
+    }
+
+    /** 花园层这一处能不能站人：返回脚底的高度，站不了是 NaN。 */
+    private double gardenFloor(double x, double z) {
+        if (x < 111 + Well.DX || x > 151 + Well.DX || z < -13 || z > 11) return Double.NaN;
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
+        for (int y = Well.REAL_GARDEN + 1; y >= Well.REAL_GARDEN - 1; y--) {
+            if (!world.getBlockAt(bx, y - 1, bz).isPassable() && world.getBlockAt(bx, y, bz).isPassable()
+                    && world.getBlockAt(bx, y + 1, bz).isPassable()) return y;
+        }
+        return Double.NaN;
+    }
+
+    /** 在你朝的方向偏 angle 度、离 dist 远的地方找一处空着、看得见的。 */
+    private double[] spotAt(Location eye, double angle, double dist) {
+        for (int k = 0; k < 8; k++) {
+            double a = Math.toRadians(eye.getYaw() + angle + (k % 2 == 0 ? 1 : -1) * ((k + 1) / 2) * 9);
+            double x = eye.getX() - Math.sin(a) * dist, z = eye.getZ() + Math.cos(a) * dist;
+            double y = gardenFloor(x, z);
+            if (Double.isNaN(y)) continue;
+            Vector to = new Vector(x - eye.getX(), y + 0.4 - eye.getY(), z - eye.getZ());
+            double d = to.length();
+            if (world.rayTraceBlocks(eye, to.normalize(), d, org.bukkit.FluidCollisionMode.NEVER, true) == null) return new double[]{x, y, z};
+        }
+        return null;
     }
 
     /**
-     * 疯，点到为止，不出声：只有呼吸。先是"我"自己喘，又急又乱；井的呼吸一下一下压过来，"我"的呼吸被带过去，跟它一个节奏
-     * （医务站那张纸："不要跟着它喘"）。手电一闪一闪，手是灰的。呼吸一下停住，硬切黑，接片尾。
+     * 疯。不出声，只有呼吸：先是"我"自己喘，又急又乱；井的呼吸一下一下压过来，"我"的呼吸被带过去，跟它一个节奏
+     * （跟对讲机里小罗一样）。手电一闪一闪，手变灰。手机自己举起来：它替你打了五星传上去，公司收到了，下一个下周出发。
+     * 然后视野撑开、变红，硬切黑，接片尾。
      */
     private void madness(Player p) {
         if (madness) return;
@@ -3073,10 +3768,8 @@ final class Story {
             after(at, () -> fx.play(p, "voice", in ? "breath_in" : "breath_out", 0.55f, 1.45f, false, 0));
         }
         // 它：一口一口压过来，慢、沉。我的呼吸跟着它，越来越齐
-        int[] slow = {100, 150, 200, 240};
-        for (int i = 0; i < slow.length; i++) {
+        for (int i = 0, at = 100; at <= 480; i++, at += 46) {
             boolean in = i % 2 == 0;
-            int at = slow[i];
             after(at, () -> {
                 fx.play(p, "amb", in ? "breath_in" : "breath_out", 0.8f, 0.7f, false, 0);
                 fx.play(p, "voice", in ? "breath_in" : "breath_out", 0.5f, 1.15f, false, 0);
@@ -3084,16 +3777,46 @@ final class Story {
         }
         after(120, () -> flashCut = 1);
         after(150, () -> greyHands(p));
-        after(200, () -> fx.send(p, "sick 0.35 40"));
-        // 呼吸一下停住，硬切黑
-        after(268, () -> {
+        // 手机自己举起来，停在屏幕上让人读完
+        after(220, () -> {
+            fx.sms(p, "息壤国家公园", "07-04 23:05", "感谢您的评价。体验官 #0011：★★★★★，已上传。本终端已上传体验官 11 位，平均 5.0 分。我们会改进。");
+            fx.send(p, "phone show");
+        });
+        // 公司那条：派人下来到底要什么（体验官本人回到地面确认评分，满三份就申请重开），一个没回来，接着派
+        after(330, () -> {
+            fx.sms(p, "二叠纪公司", "", "体验官 #0011：评分已收到，5.0 分。重新开放评估：已收到体验官评分 11 份，平均 5.0；体验官本人返回地面确认 0 份。确认满 3 份即提交重开申请。第十二位体验官下周出发。");
+            fx.send(p, "phone show");
+        });
+        after(480, () -> fx.send(p, "sick 0.35 40"));
+        after(498, () -> fx.send(p, "phone hide"));
+        // 最后那几秒：视野往外撑开，画面一层层变红，心跳越来越快，底下一股声音往上顶
+        int f = 500;
+        after(f, () -> {
+            fx.send(p, "fov 1.9 78");
+            fx.send(p, "red 1 78");
+            sound(p, "entity.warden.sonic_charge", 1f, 0.55f);
+        });
+        int[] beats = {0, 21, 37, 49, 58, 65, 70, 74};
+        for (int i = 0; i < beats.length; i++) {
+            float pitch = 0.75f + i * 0.04f;
+            after(f + beats[i], () -> sound(p, "entity.warden.heartbeat", 1.4f, pitch));
+        }
+        after(f + 33, () -> sound(p, "ambient.basalt_deltas.mood", 1f, 0.5f));
+        after(f + 47, () -> sound(p, "block.sculk_shrieker.shriek", 0.8f, 0.5f));
+        after(f + 55, () -> fx.play(p, "voice", "breath_in", 1f, 0.5f, false, 0));
+        // 一下掐断：黑，什么声音都没有
+        after(f + 78, () -> {
             fx.gain(p, "voice", 0f, 1);
             fx.gain(p, "amb", 0f, 1);
+            p.stopAllSounds();
+            fx.send(p, "audio stopall");
             fx.black(p, 1f, 1);
             flashCut = 2;
             fx.send(p, "sick 0 1");
+            fx.send(p, "red 0 1");
+            fx.send(p, "fov 1 1");
         });
-        after(310, () -> {
+        after(f + 118, () -> {
             Bukkit.getLogger().info("片尾");
             fx.send(p, "endcard");
         });
@@ -3163,6 +3886,12 @@ final class Story {
         finishOpening(p);
     }
 
+    /** 往下那一路第 i 处的落脚点，脸朝着往下走的方向。 */
+    private Location holdSpot(int i, float pitch) {
+        Well.Hold h = Well.HOLDS.get(i);
+        return new Location(world, h.in[0], h.in[1], h.in[2], h.yaw(), pitch);
+    }
+
     /** 导演栏跳进深井或井底：当作电梯已经掉下来、平台已经走过；down 为真时 807 号车也已经滑到底。 */
     private void wellReady(Player p, boolean down) {
         if (!inWell) {
@@ -3219,12 +3948,28 @@ final class Story {
             case "rim", "truss", "rope", "car" -> {
                 wellReady(p, false);
                 Location to = switch (name) {
-                    case "rim" -> new Location(world, Well.LEDGE_X0 + 3.5, Well.CAB_Y, -19.5, -60, -50);
-                    case "truss" -> new Location(world, Well.TRUSS_X0 + 12.5, Well.stepY(12) + 1, -19.5, -90, 30);
-                    case "rope" -> new Location(world, Well.FOOT_X0 + 1.5, Well.FOOT_Y, -19.5, -90, 20);
-                    default -> new Location(world, Well.BAG_X0 + 1.5, Well.BAG_Y, -19.5, 180, 10);
+                    case "rim" -> new Location(world, Well.CAB_X + 6.5, Well.CAB_Y, Well.CAB_Z + 1.5, 120, -50);
+                    case "truss" -> holdSpot(Well.TRUSS, 15);
+                    case "rope" -> holdSpot(Well.LAMPS_FROM, 10);
+                    default -> new Location(world, Well.BAG_X0 + 3.5, Well.BAG_Y, Well.BAG_Z0 + 2.5, 180, 10);
                 };
                 p.teleport(to);
+                // 踩空接住按"最后站稳的是哪一处"算：跳过来的那一处就当站稳了，不然一落地就被当成从电梯门口掉下来，拽回上面
+                safeHold = switch (name) {
+                    case "truss" -> Well.TRUSS;
+                    case "rope" -> Well.LAMPS_FROM;
+                    case "car" -> Well.BAG;
+                    default -> 0;
+                };
+                wellSafe = to.clone();
+            }
+            case "ending" -> {
+                // 收尾：花园层原件当作都读过，跟前的水里漂着对讲机；放完录音发疯，接片尾
+                wellReady(p, true);
+                p.teleport(new Location(world, 130 + Well.DX, Well.REAL_GARDEN, 2, -90, 0));
+                for (String id : LAST_ORIGINALS) read.add(id);
+                endingDue = true;
+                after(20, () -> walkieIn(p));
             }
             case "bottom", "dock2", "hall2", "window2", "garden2" -> {
                 wellReady(p, true);

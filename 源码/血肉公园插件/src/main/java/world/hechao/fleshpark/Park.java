@@ -296,6 +296,12 @@ final class Park {
         } catch (IOException | RuntimeException error) {
             plugin.getLogger().severe("摆不了肉的网格：" + error);
         }
+        // 深井的钢结构和残骸：网格在客户端模组里，这里按锚点表放锚点
+        try (java.io.InputStream index = plugin.getResource("steel_index.txt")) {
+            if (index != null) flesh.spawn(index, "steel_mesh");
+        } catch (IOException | RuntimeException error) {
+            plugin.getLogger().severe("摆不了深井的钢结构：" + error);
+        }
         tram.spawn();
         tram.lamp(0);
         ride.onDepart = story::onDepart;

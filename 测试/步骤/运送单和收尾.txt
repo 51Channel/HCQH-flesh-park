@@ -1,0 +1,58 @@
+w 92
+c shot b01_stop
+c lookat -541.6 232.2 5.9
+w 1
+c use
+w 25
+c lookat -544.8 232.8 4.9
+w 1
+c shot b02_door
+c use
+w 6
+c look -155 -15
+w 2
+c shot b03_sheet
+c look -150 -6
+w 2
+c shot b04_sheet2
+w 3
+w 3
+c cmd fp tp ending
+w 3
+c lookat 508.4 4.3 2
+w 1.5
+c shot w01_walkie
+c use
+w 1
+c cmd fp walkie
+w 3
+c shot w02_line1
+w 11
+c shot w03_lookup
+w 13
+c shot w04_garden
+w 30
+c shot w05_wu_awake
+w 17
+c shot w06_wu_breath
+w 14
+c shot w07_wu_learn
+w 18
+c shot w08_chorus
+w 14
+c shot w09_mimic
+w 11
+c shot w10_pa
+w 15
+c shot w11_hands
+w 4
+c shot w12_sms1
+w 6
+c shot w13_sms2
+w 4
+c shot w14_sms2_late
+w 4.5
+c shot w15_red
+w 6
+c shot w16_endcard
+w 2

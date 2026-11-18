@@ -392,6 +392,145 @@ def item_definition(name):
     return {"model": {"type": "minecraft:model", "model": "fleshpark:item/" + name}}
 
 
+def tex(paint, size=128):
+    """一张贴图：paint(u, v) 返回 (r, g, b) 或 (r, g, b, a)，u、v 在 0 到 1，能平铺。"""
+    out = []
+    for y in range(size):
+        for x in range(size):
+            c = paint(x / size, y / size)
+            out.append((clamp8(c[0]), clamp8(c[1]), clamp8(c[2]), clamp8(c[3]) if len(c) > 3 else 255))
+    return png(out, size, size)
+
+
+def mix3(a, b, k):
+    return (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k)
+
+
+def steel_textures():
+    """深井钢结构（插件 Rig）的贴图：锈钢、黄漆、花纹钢板、格栅、磨石子、混凝土、镀锌风管、灯箱面板，还有锈透了的花纹钢板、漆掉光了的扶手。一张盖 1 到 2 格，按世界坐标铺。"""
+    t = {}
+
+    def rust(u, v):
+        k = fbm(u, v, 4, 4, 601, 4)
+        flake = ss(0.55, 0.75, fbm(u, v, 12, 12, 603, 3))
+        streak = ss(0.45, 0.8, fbm(u, v, 24, 3, 605, 3))
+        pit = ss(0.82, 0.9, fbm(u, v, 32, 32, 607, 2))
+        c = mix3((58, 50, 46), (112, 58, 30), ss(0.35, 0.7, k))
+        c = mix3(c, (150, 82, 38), flake * 0.55)
+        c = mix3(c, (40, 30, 26), streak * 0.35 + pit * 0.5)
+        return c
+    t["rust"] = tex(rust)
+
+    def paint(u, v):
+        chip = ss(0.6, 0.66, fbm(u, v, 8, 8, 611, 4))
+        worn = ss(0.5, 0.8, fbm(u, v, 3, 3, 613, 3))
+        dirt = ss(0.4, 0.9, fbm(u, v, 6, 16, 615, 3))
+        c = mix3((204, 158, 34), (150, 116, 28), worn * 0.6)
+        c = mix3(c, (78, 66, 52), dirt * 0.35)
+        c = mix3(c, rust(u, v), chip)
+        return c
+    t["paint"] = tex(paint)
+
+    def tread(u, v):
+        # 花纹钢板：一格 6 × 6 个凸起的长条，一行横一行竖
+        n = 6
+        x, y = u * n, v * n
+        ix, iy = int(x), int(y)
+        fx, fy = x - ix - 0.5, y - iy - 0.5
+        if (ix + iy) % 2:
+            fx, fy = fy, fx
+        a, b = (fx + fy) * 0.7071, (fx - fy) * 0.7071
+        bump = 1 - ss(0.9, 1.05, math.hypot(a / 0.4, b / 0.09))
+        k = fbm(u, v, 4, 4, 621, 3)
+        worn = ss(0.45, 0.85, fbm(u, v, 3, 3, 623, 3))
+        groove = ss(0.62, 0.8, fbm(u, v, 10, 10, 625, 3))
+        c = mix3((74, 76, 78), (98, 98, 96), k)
+        c = mix3(c, (150, 150, 146), bump * (0.45 + 0.4 * worn))
+        c = mix3(c, (104, 60, 34), groove * (1 - bump) * 0.7)
+        return c
+    t["tread"] = tex(tread)
+
+    def tread_old(u, v):
+        # 用了很多年的花纹钢板：凸条磨平了一半，锈从凹槽里漫出来连成片，有几块掉漆露出底下的红丹，边上一道道污水印
+        c = tread(u, v)
+        crust = ss(0.4, 0.7, fbm(u, v, 3, 3, 627, 4))
+        flake = ss(0.6, 0.72, fbm(u, v, 14, 14, 629, 3))
+        primer = ss(0.72, 0.78, fbm(u, v, 5, 5, 631, 3))
+        stain = ss(0.5, 0.85, fbm(u, v, 2, 10, 633, 3))
+        c = mix3(c, rust(u, v), crust * 0.85)
+        c = mix3(c, (150, 78, 36), flake * crust * 0.5)
+        c = mix3(c, (128, 52, 34), primer * 0.7)
+        return mix3(c, (44, 34, 30), stain * 0.4)
+    t["tread_old"] = tex(tread_old)
+
+    def paint_old(u, v):
+        # 漆掉得差不多了的扶手：黄漆只剩一块一块，底下是锈和手摸黑的地方
+        keep = ss(0.5, 0.6, fbm(u, v, 9, 9, 617, 4))
+        grime = ss(0.45, 0.8, fbm(u, v, 8, 2, 619, 3))
+        c = mix3(rust(u, v), mix3(paint(u, v), (110, 92, 52), 0.4), keep * 0.7)
+        return mix3(c, (36, 30, 26), grime * 0.45)
+    t["paint_old"] = tex(paint_old)
+
+    def grate(u, v):
+        # 格栅：竖着的承重扁钢一格 8 根，横着的连杆一格 3 根，空当透明
+        bx = abs(((u * 8) % 1) - 0.5)
+        by = abs(((v * 3) % 1) - 0.5)
+        solid_ = bx > 0.38 or by > 0.44 or u < 0.02 or u > 0.98
+        c = mix3((70, 70, 68), (110, 62, 34), ss(0.4, 0.75, fbm(u, v, 5, 5, 631, 3)))
+        c = mix3(c, (120, 120, 116), 0.3 if bx > 0.44 else 0)
+        return (c[0], c[1], c[2], 255 if solid_ else 0)
+    t["grate"] = tex(grate)
+
+    tz = terrazzo((176, 168, 152), 641)
+
+    def terrazzo_(u, v):
+        r, g, b, _, _ = tz(u, v)
+        dirt = ss(0.45, 0.85, fbm(u, v, 4, 4, 643, 3))
+        return mix3((r, g, b), (70, 58, 50), dirt * 0.45)
+    t["terrazzo"] = tex(terrazzo_)
+
+    def concrete(u, v):
+        k = fbm(u, v, 6, 6, 651, 4)
+        stone = h2(int(u * 64), int(v * 64), 653)
+        stain = ss(0.5, 0.85, fbm(u, v, 3, 8, 655, 3))
+        c = mix3((92, 90, 86), (138, 134, 126), k)
+        if stone > 0.86:
+            c = mix3(c, (170, 164, 150), 0.6)
+        return mix3(c, (54, 44, 40), stain * 0.5)
+    t["concrete"] = tex(concrete)
+
+    def duct(u, v):
+        f1, f2, cell = worley(u, v, 10, 661)
+        spangle = 0.85 + 0.25 * h2(cell, 3, 663)
+        seam_ = ss(0.0, 0.015, abs(((v * 1) % 1) - 0.5) - 0.47)
+        dirt = ss(0.45, 0.85, fbm(u, v, 4, 4, 665, 3))
+        rust_ = ss(0.7, 0.85, fbm(u, v, 8, 8, 667, 3))
+        g = 150 * spangle
+        c = (g, g * 1.01, g * 0.98)
+        c = mix3(c, (60, 60, 58), dirt * 0.55)
+        c = mix3(c, (120, 66, 36), rust_ * 0.6)
+        c = mix3(c, (40, 40, 40), seam_ * 0.5)
+        return c
+    t["duct"] = tex(duct)
+
+    def sign(u, v):
+        # 灯箱面板：灰白底，中间一道墨绿的条，条上一个白箭头往前指；面板碎了，一道道裂纹
+        c = (160, 156, 140)
+        if 0.36 < v < 0.64:
+            c = (34, 74, 58)
+            ax, ay = u - 0.5, v - 0.5
+            shaft = abs(ay) < 0.035 and -0.25 < ax < 0.08
+            head = 0.06 < ax + 0.0 < 0.22 and abs(ay) < (0.22 - ax) * 0.75
+            if shaft or head:
+                c = (186, 184, 170)
+        crack = ss(0.0, 0.012, 0.012 - abs(fbm(u, v, 5, 3, 671, 3) - 0.5))
+        dirt = ss(0.4, 0.9, fbm(u, v, 4, 4, 673, 3))
+        c = mix3(c, (60, 54, 46), dirt * 0.35)
+        return mix3(c, (20, 18, 16), crack * 0.9)
+    t["sign"] = tex(sign, 256)
+    return t
+
+
 def main():
     target = sys.argv[1]
     files = {}
@@ -483,6 +622,7 @@ def main():
         "guide": (6, ("stand", "sit", "clap")),
         "cook": (6, ("stand", "sit", "clap", "slump")),
         "miner": (20, ("stand", "reach", "slump")),
+        "rescue": (5, ("stand", "sit", "reach")),
         "tester": (11, ("stand", "sit", "clap", "reach")),
         "you": (1, ("stand", "sit", "clap")),
         "announcer": (2, ("sit", "stand")),
@@ -528,6 +668,14 @@ def main():
 
     # 肉的网格：一个物品定义，网格在模组里按编号取
     files["assets/fleshpark/items/flesh_mesh.json"] = json.dumps(special_item("fleshpark:item/lump_base", {"type": "fleshpark:mesh"})).encode()
+
+    # 深井的钢结构和残骸：网格在模组里按编号取，贴图按材质分
+    files["assets/fleshpark/items/steel_mesh.json"] = json.dumps(special_item("fleshpark:item/lump_base", {"type": "fleshpark:steel"})).encode()
+    for name, data in steel_textures().items():
+        files["assets/fleshpark/textures/steel/" + name + ".png"] = data
+    # 深井里半格的落脚处：看不见的铜台阶（插件的 B.FOOT_HALF）。换成一个没有面的模型，碰撞还在
+    files["assets/fleshpark/models/block/empty.json"] = json.dumps({"textures": {"particle": "minecraft:block/weathered_cut_copper"}, "elements": []}).encode()
+    files["assets/minecraft/blockstates/waxed_weathered_cut_copper_slab.json"] = json.dumps({"variants": {k: {"model": "fleshpark:block/empty"} for k in ("type=bottom", "type=top", "type=double")}}).encode()
 
     # 缆车：车身的模型在模组代码里，贴图是旧油漆
     def tram_paint(x, y):

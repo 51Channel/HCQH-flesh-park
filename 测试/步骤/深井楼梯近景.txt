@@ -1,0 +1,98 @@
+w 3
+c cmd fp fx meshstat on
+c cmd fp tp well
+w 10
+c hud off
+w 1
+c cmd tp 496.50 162.55 5.50
+w 1.5
+c lookat 498.50 161.80 9.50
+w 1.5
+c shot stand1_along
+c cmd tp 500.50 159.55 10.50
+w 1.5
+c lookat 497.50 162.20 7.42
+w 1.5
+c shot stand1_back
+c cmd tp 500.50 159.55 10.50
+w 1.5
+c lookat 502.50 159.30 13.50
+w 1.5
+c shot stand2_along
+c cmd tp 504.50 156.55 13.50
+w 1.5
+c lookat 501.64 159.20 11.93
+w 1.5
+c shot stand2_back
+c cmd tp 504.50 156.55 13.50
+w 1.5
+c lookat 510.50 155.30 15.50
+w 1.5
+c shot stand3_along
+c cmd tp 512.50 153.55 13.50
+w 1.5
+c lookat 507.33 155.70 14.17
+w 1.5
+c shot stand3_back
+c cmd tp 512.50 153.55 13.50
+w 1.5
+c lookat 515.50 152.80 12.50
+w 1.5
+c shot stand4_along
+c cmd tp 517.50 151.05 11.50
+w 1.5
+c lookat 514.00 153.70 13.75
+w 1.5
+c shot stand4_back
+c cmd tp 517.50 151.05 11.50
+w 1.5
+c lookat 520.50 150.80 8.50
+w 1.5
+c shot stand5_along
+c cmd tp 521.50 148.55 7.50
+w 1.5
+c lookat 519.33 151.20 10.67
+w 1.5
+c shot stand5_back
+c cmd tp 521.50 148.55 7.50
+w 1.5
+c lookat 523.50 148.80 0.50
+w 1.5
+c shot stand6_along
+c cmd tp 523.50 146.05 -1.50
+w 1.5
+c lookat 523.29 148.70 4.13
+w 1.5
+c shot stand6_back
+c cmd tp 523.50 146.05 -1.50
+w 1.5
+c lookat 522.50 145.80 -4.50
+w 1.5
+c shot stand7_along
+c cmd tp 521.50 143.05 -6.50
+w 1.5
+c lookat 523.63 146.20 -3.50
+w 1.5
+c shot stand7_back
+c cmd tp 521.50 143.05 -6.50
+w 1.5
+c lookat 519.50 142.80 -10.50
+w 1.5
+c shot stand8_along
+c cmd tp 517.50 140.05 -11.50
+w 1.5
+c lookat 520.71 142.70 -8.71
+w 1.5
+c shot stand8_back
+c cmd tp 517.50 140.05 -11.50
+w 1.5
+c lookat 513.50 139.30 -13.50
+w 1.5
+c shot stand9_along
+c cmd tp 512.50 136.05 -12.50
+w 1.5
+c lookat 515.42 140.20 -12.83
+w 1.5
+c shot stand9_back
+c hud on
+w 1

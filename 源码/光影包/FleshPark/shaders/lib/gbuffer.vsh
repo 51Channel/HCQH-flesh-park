@@ -12,6 +12,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform vec3 cameraPosition;
 uniform float frameTimeCounter;
 
+#include "/lib/flash.glsl"
 #include "/lib/move.glsl"
 
 void main() {
@@ -32,6 +33,9 @@ void main() {
         tint = vec4(1.0);
         normal = octDecode(gl_MultiTexCoord0.xy);
         vertex.xyz += normal * fleshPush(gl_Color, worldPos, frameTimeCounter);
+        // 怕手电：位移在镜头坐标里算，再转回模型坐标（模型矩阵只有平移和转动）
+        mat3 toView = mat3(gl_ModelViewMatrix);
+        vertex.xyz += transpose(toView) * fleshShy((gl_ModelViewMatrix * gl_Vertex).xyz, normalize(toView * normal), worldPos, frameTimeCounter);
     } else if (smoothMarked(gl_Color)) {
         normal = octDecode(gl_Color.rg);
         tint = vec4(TINTS[int(gl_Color.b * 255.0 + 0.5)], 1.0);

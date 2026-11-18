@@ -1,0 +1,72 @@
+w 3
+c cmd fp tp well
+w 8
+c cmd tp 502.5 159 12.5
+w 0.7
+c lookat 501.16628556145577 159.08 12.163056617025052
+w 0.5
+c hit
+c use
+w 1.2
+c shot note_w3
+w 2
+c shot read_w3
+c use
+w 1
+c cmd tp 504.5 130 -3.5
+w 0.7
+c lookat 504.5 130.08 -5.0
+w 0.5
+c hit
+c use
+w 1.2
+c shot note_w4
+w 2
+c shot read_w4
+c use
+w 1
+c cmd tp 516.5 92 -10.5
+w 0.7
+c lookat 515.3210302413731 92.08 -11.16613104775117
+w 0.5
+c hit
+c use
+w 1.2
+c shot note_w5
+w 2
+c shot read_w5
+c use
+w 1
+c cmd tp 520.5 143 -9.5
+w 0.7
+c lookat 520.6875792670465 142.58 -9.602995315778346
+w 0.5
+c hit
+c use
+w 1.2
+c shot note_w1
+w 2
+c shot read_w1
+c use
+w 1
+c cmd tp 512.5 154 13.5
+w 1.5
+c lookat 517.7 152.3 11.7
+w 1
+c shot close_stair_lamp
+c cmd tp 516.5 92 -10.5
+w 1.5
+c lookat 510.8 88.5 -10.3
+w 1
+c shot close_duct_marker
+c cmd tp 521.5 102 4.5
+w 1.5
+c lookat 522.3 99.2 0.3
+w 1
+c shot close_sign
+c cmd tp 493.5 164 0.5
+w 1.5
+c lookat 505 150 14
+w 1
+c shot close_landing_down
+w 1

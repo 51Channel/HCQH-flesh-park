@@ -14,7 +14,7 @@ import java.util.List;
 /** 测试和录制用的命令：直接开车、跳到某一段、站到某个位置。 */
 final class FpCommand implements CommandExecutor, TabCompleter {
     private static final List<String> JUMPS = List.of("portal", "mouth", "throat", "squeeze", "exit", "cavity", "far", "approach");
-    private static final List<String> SPOTS = List.of("station", "door", "dock", "hall", "atrium", "window", "figure", "garden", "lockers", "pool1", "pool2", "pool3", "burrow", "forest", "vehicle", "exit", "cab", "well", "rim", "truss", "rope", "car", "bottom", "dock2", "hall2", "window2", "garden2");
+    private static final List<String> SPOTS = List.of("station", "door", "dock", "hall", "atrium", "window", "figure", "garden", "lockers", "pool1", "pool2", "pool3", "burrow", "forest", "vehicle", "exit", "cab", "well", "rim", "truss", "rope", "car", "bottom", "dock2", "hall2", "window2", "garden2", "ending");
 
     private final Park park;
 
@@ -42,6 +42,10 @@ final class FpCommand implements CommandExecutor, TabCompleter {
             }
             case "reset" -> park.reset();
             case "skip" -> park.story.skipIntro();
+            // 测试用：收尾那台对讲机，不用点直接放
+            case "walkie" -> {
+                if (player != null) park.story.playWalkie(player);
+            }
             case "scare" -> {
                 if (player != null) park.story.glassScare(player);
             }

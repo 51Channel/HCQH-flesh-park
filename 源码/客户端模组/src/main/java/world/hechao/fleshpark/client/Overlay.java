@@ -136,6 +136,55 @@ final class Overlay {
 
     private static boolean tapeHidden;
 
+    /** 搜救二队老周头盔上的记录仪：2007 年 7 月 7 日凌晨那一段。null 是没在放，不然是开头那一秒（时:分:秒）。 */
+    private static int helmetSec = -1;
+    private static long helmetAt;
+
+    /** helmet 03:20:00 开始放（钟从这一秒往后走），helmet off 回到存档。 */
+    static void helmet(String arg) {
+        if (arg.equals("off")) {
+            helmetSec = -1;
+            return;
+        }
+        String[] f = arg.split(":");
+        helmetSec = Integer.parseInt(f[0]) * 3600 + Integer.parseInt(f[1]) * 60 + Integer.parseInt(f[2]);
+        helmetAt = now();
+        glitch(8);
+    }
+
+    static boolean helmet() {
+        return helmetSec >= 0;
+    }
+
+    /** 头盔记录仪：画质差，四角压暗，满屏噪点，左上 REC，左下 2007 年那晚的钟。 */
+    private static void drawHelmet(GuiGraphics g, Font font, int w, int h) {
+        long ms = now();
+        tint(g, w, h, 0x10140A, 0.18f);
+        for (int y = 0; y < h; y += 2) g.fill(0, y, w, y + 1, 0x1A000000);
+        int edge = 0xB0000000;
+        g.fillGradient(0, 0, w, h / 4, edge, 0);
+        g.fillGradient(0, h - h / 4, w, h, 0, edge);
+        for (int x = 0; x < w / 8; x += 2) {
+            int a = (int) (0xA0 * (1 - x / (w / 8f)));
+            g.fill(x, 0, x + 2, h, a << 24);
+            g.fill(w - x - 2, 0, w - x, h, a << 24);
+        }
+        for (int i = 0; i < 260; i++) {
+            int x = RND.nextInt(w), y = RND.nextInt(h);
+            g.fill(x, y, x + 1, y + 1, RND.nextBoolean() ? 0x30FFFFFF : 0x40000000);
+        }
+        if (ms / 600 % 2 == 0) g.fill(12, 12, 18, 18, RED);
+        g.drawString(font, "REC", 22, 11, 0xCCFFFBF5, false);
+        g.drawString(font, "搜救二队  CH2  周", 48, 11, 0x99FFFBF5, false);
+        int sec = helmetSec + (int) ((ms - helmetAt) / 1000);
+        String clock = String.format("2007.07.07  %02d:%02d:%02d", sec / 3600 % 24, sec / 60 % 60, sec % 60);
+        g.drawString(font, clock, 12, h - 17, 0xCCFFFBF5, false);
+        if (ms > nextGlitch) {
+            nextGlitch = ms + 2500 + RND.nextInt(4000);
+            glitch(2 + RND.nextInt(4));
+        }
+    }
+
     /** 导演栏用：录像带角标开关。 */
     static void toggleTape() {
         tapeHidden = !tapeHidden;
@@ -202,6 +251,7 @@ final class Overlay {
         depthAlpha = 0;
         report = new String[0];
         tapeLabel = TAPE_LABEL;
+        helmetSec = -1;
         Phone.clear();
         Tags.clear();
     }
@@ -222,13 +272,22 @@ final class Overlay {
             g.fillGradient(0, 0, w, h / 3, edge, 0);
             g.fillGradient(0, h - h / 3, w, h, 0, edge);
         }
+        float red = ClientFx.red();
+        if (red > 0) {
+            // 发疯最后：一层层变红，边上更深
+            tint(g, w, h, 0x8E0B06, 0.66f * red);
+            int edge = (int) (Math.min(1, red) * 235) << 24 | 0x2A0000;
+            g.fillGradient(0, 0, w, h / 2, edge, 0x002A0000);
+            g.fillGradient(0, h / 2, w, h, 0x002A0000, edge);
+        }
         if (ClientFx.black > 0) tint(g, w, h, 0, ClientFx.black);
         Font font = mc.font;
         boolean paper = introAt >= 0 || titleAt >= 0 || reportAt >= 0 || endAt >= 0;
         if (cine) {
             drawCine(g, font, w, h);
         } else if (!paper) {
-            if (!tapeHidden) drawTape(g, font, w, h);
+            if (helmetSec >= 0) drawHelmet(g, font, w, h);
+            else if (!tapeHidden) drawTape(g, font, w, h);
             drawDepth(g, font, w, h, mc);
             if (ClientFx.black < 0.5f) Tags.draw(g, font, w, h, mc);
             if (diaryAt >= 0) drawDiary(g, font, w, h);
@@ -344,7 +403,7 @@ final class Overlay {
     }
 
     static boolean cinematic() {
-        return cine;
+        return cine || helmetSec >= 0;
     }
 
     private static void drawCine(GuiGraphics g, Font font, int w, int h) {

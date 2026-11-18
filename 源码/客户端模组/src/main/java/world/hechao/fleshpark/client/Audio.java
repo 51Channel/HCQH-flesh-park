@@ -34,8 +34,8 @@ final class Audio {
     private static SoundSource slider(String channel) {
         return switch (channel) {
             case "music" -> SoundSource.MUSIC;
-            case "amb", "tapebed", "bus", "moan" -> SoundSource.AMBIENT;
-            case "voice", "tramradio", "tramguide", "busradio", "tv" -> SoundSource.VOICE;
+            case "amb", "tapebed", "bus", "moan", "walkiebed" -> SoundSource.AMBIENT;
+            case "voice", "tramradio", "tramguide", "busradio", "tv", "walkie" -> SoundSource.VOICE;
             default -> SoundSource.MASTER;
         };
     }

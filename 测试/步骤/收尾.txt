@@ -1,0 +1,46 @@
+w 3
+c cmd fp tp ending
+w 3
+c lookat 508.4 4.3 2
+w 1.5
+c shot w01_walkie
+c use
+w 1
+c cmd fp walkie
+w 5
+c shot w02_down
+w 11
+c shot w03_sync
+w 10
+c shot w04_drug
+w 6
+c shot w05_cant
+w 8
+c shot w06_building
+w 6
+c shot w07_up
+w 9
+c shot w08_breath
+w 5
+c shot w09_luo
+w 2
+c shot w10_chorus
+w 7
+c shot w11_cut
+w 3
+c shot w12_mimic
+w 8
+c shot w13_pa
+w 10
+c shot w14_hands
+w 4
+c shot w15_sms1
+w 6
+c shot w16_sms2
+w 4
+c shot w17_sms2_late
+w 6
+c shot w18_red
+w 11
+c shot w19_endcard
+w 2

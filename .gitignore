@@ -12,3 +12,6 @@ run/
 
 # 构建好的 jar 和导出的模型放在 GitHub Releases，不进仓库
 /交付/
+
+# 插件构建时烘出来的深井钢结构网格
+/源码/客户端模组/generated_media/assets/fleshpark/mesh/steel.bin

@@ -63,15 +63,16 @@ final class DirectorScreen extends Screen {
                 new Tile("森林电梯", "掉进井里", "fp tp cab", false, false, null))));
         rows.add(new Row("第四关  深井", List.of(
                 new Tile("电梯卡住", "门撬开一半", "fp tp well", false, false, null),
-                new Tile("井沿", "抬头看", "fp tp rim", false, false, null),
-                new Tile("4 号支撑", "井在喘", "fp tp truss", false, false, null),
-                new Tile("搜救队的绳", "绳梯和头灯", "fp tp rope", false, false, null),
+                new Tile("员工平台", "抬头看", "fp tp rim", false, false, null),
+                new Tile("4 号支撑", "断楼梯", "fp tp truss", false, false, null),
+                new Tile("肉块", "对面的头灯", "fp tp rope", false, false, null),
                 new Tile("807 号车", "冷光棒 · 滑下去", "fp tp car", false, false, null))));
         rows.add(new Row("第五关  井底的游客中心 · 结尾", List.of(
                 new Tile("3 号码头", "下车的地方", "fp tp dock2", false, false, null),
                 new Tile("大厅", "原件", "fp tp hall2", false, false, null),
                 new Tile("观景窗", "手印", "fp tp window2", false, false, null),
-                new Tile("花园层 · 收尾", "三张原件读完", "fp tp garden2", false, false, null))));
+                new Tile("花园层", "三张原件", "fp tp garden2", false, false, null),
+                new Tile("收尾", "发疯 · 片尾", "fp tp ending", false, false, null))));
         rows.add(new Row("", List.of(new Tile("回到开局前", "按住 1 秒，整局重来", "fp reset", true, true, null))));
     }
 

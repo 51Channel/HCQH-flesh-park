@@ -11,7 +11,7 @@ import java.util.Random;
  * pose 写成 kind.n 或 kind.n.posture，比如 tourist.12、bather.3.bust、tester.4.sit。
  * <p>
  * 身份：tourist 2007 年的游客（夏装、挂独立日门票）、bather 泡池的游客、kid 小孩、ranger 护林员、guide 导览员、cook 餐厅、
- * miner 回收公司的采收工（安全帽、头灯）、tester 前十个体验官（反光背心、红挂绳）、you 你（背心、你的工牌）、announcer 播音员。
+ * miner 回收公司的采收工（安全帽、头灯）、rescue 2007 年的搜救队（橙衣服、白安全帽、头灯）、tester 前十个体验官（反光背心、红挂绳）、you 你（背心、你的工牌）、announcer 播音员。
  * 姿势：stand 站、raised 举一只手、reach 两只手往前伸、bust 泡在池子里的半身、sit 坐、clap 坐着鼓掌、slump 垂着头。
  */
 final class Figure {
@@ -226,6 +226,21 @@ final class Figure {
                 hair = "none";
                 color[TOP] = color[BOTTOM] = pickColor(COVERALL, COVERALL, NAVY, OLIVE);
                 color[HAT] = pickColor(HARDHAT, HARDHAT, WHITE, ORANGE);
+                color[SHOES] = BLACK;
+                color[TRIM] = LEATHER;
+                color[BAG] = LEATHER;
+                color[LAMP] = LAMP_WHITE;
+            }
+            case "rescue" -> {
+                // 2007 年的搜救队：橙色连体服，白安全帽带头灯，腰上挂绳
+                top = "long";
+                bottom = "pants";
+                hat = "hard";
+                shoes = "boots";
+                bag = "belt";
+                hair = "none";
+                color[TOP] = color[BOTTOM] = ORANGE;
+                color[HAT] = WHITE;
                 color[SHOES] = BLACK;
                 color[TRIM] = LEATHER;
                 color[BAG] = LEATHER;

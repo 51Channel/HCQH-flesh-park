@@ -26,14 +26,17 @@ dependencies {
 // 肉的网格：构建时从规划算出来。网格进客户端模组，锚点表进插件
 def meshBlob = file("../客户端模组/generated_media/assets/fleshpark/mesh/flesh.bin")
 def meshIndex = layout.buildDirectory.file("bake/mesh_index.txt").get().asFile
+// 深井的钢结构和残骸：同一个烘焙任务一起出
+def steelBlob = file("../客户端模组/generated_media/assets/fleshpark/mesh/steel.bin")
+def steelIndex = layout.buildDirectory.file("bake/steel_index.txt").get().asFile
 tasks.register("bakeMesh", JavaExec) {
     dependsOn compileJava
     classpath = sourceSets.main.output.classesDirs
     mainClass = "world.hechao.fleshpark.core.MeshBaker"
-    args = [meshBlob.path, meshIndex.path]
+    args = [meshBlob.path, meshIndex.path, steelBlob.path, steelIndex.path]
     jvmArgs = ["-Xmx4g"]
     inputs.files(sourceSets.main.output.classesDirs)
-    outputs.files(meshBlob, meshIndex)
+    outputs.files(meshBlob, meshIndex, steelBlob, steelIndex)
 }
 sourceSets.main.resources.srcDir(layout.buildDirectory.dir("bake"))
 tasks.named("processResources") {

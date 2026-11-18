@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "hechao_client_probe",
+  "version": "${version}",
+  "name": "赫朝客户端探针",
+  "description": "只用于自动测试：在客户端内截图、记录帧数、执行测试脚本发来的操作。不要装进正式实例。",
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "depends": {
+    "minecraft": "1.21.11",
+    "fabricloader": ">=0.19.3",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "entrypoints": {
+    "client": ["world.hechao.clientprobe.ClientProbe"]
+  }
+}

@@ -1,0 +1,49 @@
+w 3
+c cmd fp tp well
+w 10
+c cmd tp 520.5 150.6 8.5
+w 1.5
+c lookat 523 149.5 3
+w 0.5
+g 521.5 7.5 6
+w 2
+c shot sq1_land
+g 522.6 3.5 4
+w 0.5
+c shot sq2_standing_blocked
+c sneak 600
+g 522.6 3.5 8
+w 0.5
+c shot sq3_crouched_in
+g 523.5 1.0 8
+w 1
+g 523.5 0.5 4
+w 1
+c cmd tp 522.5 148.6 6.5
+w 1
+c sneak 600
+g 522.5 3.5 8
+g 523.5 2.5 8
+g 523.5 0.5 8
+w 1
+c cmd tp 523.5 148.6 6.5
+w 1
+c sneak 600
+g 524.5 4.5 8
+g 524.5 2.5 8
+g 524.5 0.5 8
+w 1
+c cmd tp 522.8 148.6 6.2
+w 1
+c sneak 900
+g 523.2 3.8 8
+w 0.5
+c shot sq4_under_wait
+w 32
+g 523.5 1.0 8
+w 0.5
+g 523.2 4.0 8
+w 0.5
+g 523.5 1.0 8
+c shot sq5_after_wait
+w 1

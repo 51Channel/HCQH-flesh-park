@@ -35,7 +35,9 @@ public final class FleshParkClient implements ClientModInitializer {
         register("face", FaceRenderer.Unbaked.MAP_CODEC);
         register("shot", ShotRenderer.Unbaked.MAP_CODEC);
         register("road", Road.Unbaked.MAP_CODEC);
+        register("steel", SteelRenderer.Unbaked.MAP_CODEC);
         MeshStore.loadInBackground();
+        SteelRenderer.loadInBackground();
         Phone.register();
         DirectorScreen.register();
 

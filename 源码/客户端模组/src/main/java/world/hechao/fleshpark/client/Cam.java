@@ -10,8 +10,10 @@ import net.minecraft.client.player.LocalPlayer;
 final class Cam {
     private static final double EYE = 1.62;
     private static double[][] keys = new double[0][];
-    private static int ticks, age;
-    private static boolean active;
+    private static int ticks, age, clock;
+    private static boolean active, linear;
+    /** 手持晃动：头盔记录仪那种走路一颠一颠、头一直在小幅度转。0 是稳的。 */
+    static double shake;
 
     private Cam() {
     }
@@ -20,9 +22,12 @@ final class Cam {
         return active;
     }
 
-    /** cam off，或者 cam 时长 x y z 水平 俯仰;x y z 水平 俯仰;... */
+    /** cam off，或者 cam [lin] 时长 x y z 水平 俯仰;x y z 水平 俯仰;...（lin：匀速走，头尾不减速，几段接着放不会一停一停） */
     static void set(String line) {
-        String[] a = line.trim().split(" ", 3);
+        line = line.trim();
+        linear = line.startsWith("cam lin ");
+        if (linear) line = "cam " + line.substring(8);
+        String[] a = line.split(" ", 3);
         if (a.length < 3 || a[1].equals("off")) {
             active = false;
             return;
@@ -41,13 +46,22 @@ final class Cam {
 
     static void reset() {
         active = false;
+        shake = 0;
     }
 
     static void tick(Minecraft mc) {
         if (!active || mc.player == null || keys.length == 0) return;
         age = Math.min(age + 1, ticks);
-        double t = age / (double) ticks, e = t * t * (3 - 2 * t);
-        double[] q = sample(e);
+        clock++;
+        double t = age / (double) ticks, e = linear ? t : t * t * (3 - 2 * t);
+        double[] q = sample(e).clone();
+        if (shake > 0) {
+            // 几条不同快慢的正弦叠起来：不像噪声那么抖，像人头在动
+            double c = clock;
+            q[3] += shake * (Math.sin(c * 0.13) * 1.6 + Math.sin(c * 0.41 + 1.3) * 0.5);
+            q[4] += shake * (Math.sin(c * 0.11 + 2.1) * 1.1 + Math.sin(c * 0.57) * 0.35);
+            q[1] += shake * 0.035 * Math.sin(c * 0.62);
+        }
         LocalPlayer player = mc.player;
         player.setDeltaMovement(0, 0, 0);
         player.setPos(q[0], q[1] - EYE, q[2]);

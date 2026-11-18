@@ -1,0 +1,112 @@
+{
+  "minecraft": "1.21.11",
+  "ops": [
+    {
+      "name": "hehe11",
+      "uuid": "2442288c8d7e4a27a75c0934b4bfc08b"
+    },
+    {
+      "name": "hehe11_Ent",
+      "uuid": "8a6720d1340d42a284e63a27735c51f9"
+    }
+  ],
+  "projects": [
+    {
+      "name": "黑箱 Boss",
+      "port": 25601,
+      "files": "黑箱Boss",
+      "plugins": [
+        "BlackBoxBoss-0.3.0.jar"
+      ],
+      "mods": [],
+      "modrinthMods": [
+        "fabric-api"
+      ],
+      "modrinthPlugins": [],
+      "dummyRehearsal": true
+    },
+    {
+      "name": "谁是男生女生",
+      "port": 25602,
+      "files": "HCQH-boys-and-grils-seek",
+      "plugins": [
+        "BoysGirlsSeek-0.8.11.jar"
+      ],
+      "mods": [
+        "BoysGirlsClient-0.8.11.jar"
+      ],
+      "modrinthMods": [
+        "fabric-api"
+      ],
+      "modrinthPlugins": []
+    },
+    {
+      "name": "说话才能跳",
+      "port": 25603,
+      "files": "HCQH-talk-to-jump",
+      "plugins": [
+        "TalkToJump-0.9.0.jar"
+      ],
+      "mods": [
+        "TalkToJumpClient-0.8.0.jar",
+        "HechaoCrosshairName-0.1.0.jar"
+      ],
+      "modrinthMods": [
+        "fabric-api",
+        "simple-voice-chat@fabric-1.21.11-2.6.27"
+      ],
+      "modrinthPlugins": [
+        "simple-voice-chat@bukkit-2.6.27"
+      ],
+      "worldZip": "TalkToJump-map-v0.6.0.zip",
+      "serverProperties": {
+        "spawn-protection": "0"
+      },
+      "waitForLog": "语音识别模型已加载",
+      "serverFolder": "voskmac",
+      "jvmArguments": [
+        "-Djna.library.path=voskmac"
+      ],
+      "voiceChatPort": 24603
+    },
+    {
+      "name": "投票删方块生存",
+      "port": 25604,
+      "files": "HCQH-vote-delete-block-survival",
+      "plugins": [
+        "VoteDeleteSurvival-0.11.10.jar"
+      ],
+      "mods": [
+        "VoteDeleteDirector-0.11.10.jar"
+      ],
+      "modrinthMods": [
+        "fabric-api"
+      ],
+      "modrinthPlugins": []
+    },
+    {
+      "name": "血肉公园",
+      "port": 25605,
+      "files": "血肉公园",
+      "plugins": [
+        "FleshPark-0.2.0.jar"
+      ],
+      "mods": [
+        "FleshParkAssets-0.2.0.jar"
+      ],
+      "modrinthMods": [
+        "fabric-api",
+        "sodium@mc1.21.11-0.8.14-fabric",
+        "iris@1.10.8+1.21.11-fabric"
+      ],
+      "modrinthPlugins": [],
+      "serverProperties": {
+        "allow-flight": "true",
+        "view-distance": "16",
+        "simulation-distance": "8",
+        "spawn-protection": "0"
+      },
+      "waitForLog": "血肉公园就绪"
+    }
+  ]
+}

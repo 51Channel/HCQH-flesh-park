@@ -85,7 +85,7 @@ c shot 22_well_door
 c cmd fp tp car
 w 3
 c shot 23_bag_hint
-c lookat 540.55 72.32 -18.4
+c lookat 506.35 72.3 13.35
 c use
 l 冷光棒 5
 w 5.5

@@ -69,7 +69,14 @@ public enum B {
     /** 深井里往东下去的台阶：高的那半在西边。 */
     STAIR_W("minecraft:polished_andesite_stairs[facing=west]"),
     /** 搜救队的绳梯：贴在东边那根钢柱上。 */
-    LADDER_W("minecraft:ladder[facing=west]");
+    LADDER_W("minecraft:ladder[facing=west]"),
+    /** 深井的螺旋台阶：半格的那一级。整格的用 PLATFORM（和楼里的楼梯一个料）。 */
+    STEP_HALF("minecraft:polished_andesite_slab[type=bottom]"),
+    /** 电梯门口那块旧员工平台：半格的铁格栅。 */
+    GRATE_HALF("minecraft:waxed_oxidized_cut_copper_slab[type=bottom]"),
+    /** 深井里落脚的地方：样子是模型（Rig），脚下是看不见的方块。整格的就是屏障；半格的是换成空模型的铜台阶（客户端资源里改的）。 */
+    FOOT("minecraft:barrier"),
+    FOOT_HALF("minecraft:waxed_weathered_cut_copper_slab[type=bottom]");
 
     public final String state;
 
@@ -84,7 +91,7 @@ public enum B {
     /** 不透光的方块：展示实体的中心埋进去会变成全黑。 */
     public boolean isOpaque() {
         return switch (this) {
-            case STAIR_E, STAIR_W, LADDER_W, WALK_B, WALK_T, GLASS_X, BARS_X, BARS_Z, BARS_ES, BARS_EN, HULL_GLASS, SHOP_GLASS, BENCH, TABLE, BIN, DEAD_PLANT, BUSH, DEBRIS, DEBRIS_DARK, BARRIER, LIGHT_3, LIGHT_5, LIGHT_7, LIGHT_9, LIGHT_15, MIRROR, GLASS_Z -> false;
+            case STAIR_E, STAIR_W, LADDER_W, WALK_B, WALK_T, STEP_HALF, GRATE_HALF, FOOT, FOOT_HALF, GLASS_X, BARS_X, BARS_Z, BARS_ES, BARS_EN, HULL_GLASS, SHOP_GLASS, BENCH, TABLE, BIN, DEAD_PLANT, BUSH, DEBRIS, DEBRIS_DARK, BARRIER, LIGHT_3, LIGHT_5, LIGHT_7, LIGHT_9, LIGHT_15, MIRROR, GLASS_Z -> false;
             default -> true;
         };
     }
@@ -92,7 +99,7 @@ public enum B {
     /** 人能走过去的方块。 */
     public boolean isWalkable() {
         return switch (this) {
-            case STAIR_E, STAIR_W, LADDER_W, WALK_B, WALK_T, DEBRIS, DEBRIS_DARK, LIGHT_3, LIGHT_5, LIGHT_7, LIGHT_9, LIGHT_15 -> true;
+            case STAIR_E, STAIR_W, LADDER_W, WALK_B, WALK_T, STEP_HALF, GRATE_HALF, DEBRIS, DEBRIS_DARK, LIGHT_3, LIGHT_5, LIGHT_7, LIGHT_9, LIGHT_15 -> true;
             default -> false;
         };
     }

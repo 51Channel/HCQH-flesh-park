@@ -32,6 +32,12 @@ final class Guard implements Listener {
         park.plugin.getServer().getScheduler().runTaskLater(park.plugin, park::autoReset, 30);
     }
 
+    /** 不弹原版"解锁新配方"：快捷栏换成灰手的时候会弹一个，片子里很出戏。 */
+    @EventHandler
+    public void onRecipe(org.bukkit.event.player.PlayerRecipeDiscoverEvent event) {
+        event.setCancelled(true);
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         park.ride.quit(event.getPlayer());
@@ -66,7 +72,7 @@ final class Guard implements Listener {
 
     @EventHandler
     public void onDismount(EntityDismountEvent event) {
-        if (event.getEntity() instanceof org.bukkit.entity.Player rider && park.story.busHolds(rider)) {
+        if (event.getEntity() instanceof org.bukkit.entity.Player rider && (park.story.busHolds(rider) || park.story.carHolds(rider))) {
             event.setCancelled(true);
             return;
         }
@@ -90,6 +96,18 @@ final class Guard implements Listener {
     public void onClickEntity(PlayerInteractEntityEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
         if (park.click(event.getRightClicked(), event.getPlayer())) event.setCancelled(true);
+    }
+
+    /** 深井里被肉索缠住时连按左键扯开：挥一下手就算一下。 */
+    @EventHandler
+    public void onSwing(org.bukkit.event.player.PlayerAnimationEvent event) {
+        if (event.getAnimationType() == org.bukkit.event.player.PlayerAnimationType.ARM_SWING) park.story.wellSwing(event.getPlayer());
+    }
+
+    /** 深井里脚被肉垫吸住时连按空格拔出来：跳一下算一下。 */
+    @EventHandler
+    public void onJump(com.destroystokyo.paper.event.player.PlayerJumpEvent event) {
+        park.story.wellJump(event.getPlayer());
     }
 
     @EventHandler

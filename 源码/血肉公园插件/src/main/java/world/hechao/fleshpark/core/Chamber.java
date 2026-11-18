@@ -102,39 +102,45 @@ public final class Chamber {
     }
 
     /**
-     * 深井：一根竖着的肉管子，井口压着上面那座楼的底（一大把往下垂的肉根），井底是平的，真游客中心躺在上面。
-     * 人走的平台、桁架、绳梯和真楼都留空。
+     * 深井：井口一圈宽，往下收成一段窄的肉喉咙，喉咙底下撑开成大腔。井口压着上面那座楼的底（一大把往下垂的肉根），井底是平的，真游客中心躺在上面。
+     * 喉咙的井壁上托着往下那一路的落脚处（断楼梯、肉块，f 里按 Well.fleshNear / airNear 改），钢梁两头插进墙里。电梯、车滑下去的那条、真楼都留空。
      */
     static Chamber well() {
         List<double[]> line = new ArrayList<>();
         for (double y = Well.BOTTOM - 6; y <= Well.TOP + 6; y += 2.5) line.add(new double[]{Well.SX, y, Well.SZ});
         Chamber c = new Chamber(Style.WELL, line, new int[0], 0);
         Random rnd = new Random(31);
-        // 肉根：从井口边上一路垂下来。中间留出来，抬头看得见上面那座楼的底：钢梁、楼板、楼板上的洞里漏下来的灯
+        // 肉根：从井口边上垂下来，垂到喉咙口为止。中间留出来，抬头看得见上面那座楼的底：钢梁、楼板、楼板上的洞里漏下来的灯
         for (int i = 0; i < 20; i++) {
             double a = rnd.nextDouble() * Math.PI * 2, k = 0.55 + rnd.nextDouble() * 0.4;
-            double x = Well.SX + Math.cos(a) * 32 * k, z = Well.SZ + Math.sin(a) * 30 * k;
-            double tip = Well.TOP - 8 - rnd.nextDouble() * (i < 6 ? 36 : 16);
-            c.limbs.add(new double[]{x, Well.TOP + 3, z, x + (rnd.nextDouble() - 0.5) * 5, tip, z + (rnd.nextDouble() - 0.5) * 5, 1.8 + rnd.nextDouble() * 1.8, 0.6 + rnd.nextDouble() * 0.8});
+            double x = Well.SX + Math.cos(a) * 25 * k, z = Well.SZ + Math.sin(a) * 25 * k;
+            double tip = Well.NECK_Y + 1 + rnd.nextDouble() * (i < 6 ? 5 : 9);
+            c.limbs.add(new double[]{x, Well.TOP + 3, z, x + (rnd.nextDouble() - 0.5) * 4, tip, z + (rnd.nextDouble() - 0.5) * 4, 1.8 + rnd.nextDouble() * 1.8, 0.6 + rnd.nextDouble() * 0.8});
+        }
+        // 三根细的从楼板的洞里垂进喉咙中间，站在断楼梯上隔着井心看得见；垂到钢梁那一层上面就停。避开 4 号支撑穿过来的那一条
+        double side = Math.PI - Well.TRUSS_PHI + Math.PI / 2;
+        for (int i = 0; i < 3; i++) {
+            double a = side + (i - 1) * 0.5 + (i == 1 ? Math.PI : 0), rr = 4.5 + i * 1.2;
+            double x = Well.SX + Math.cos(a) * rr, z = Well.SZ + Math.sin(a) * rr;
+            c.limbs.add(new double[]{x, Well.TOP + 2, z, x + (rnd.nextDouble() - 0.5) * 2, 142 + i * 6, z + (rnd.nextDouble() - 0.5) * 2, 1.0, 0.35});
         }
         // 几根细的从楼板的洞里垂下来
         for (int i = 0; i < 6; i++) {
             double a = rnd.nextDouble() * Math.PI * 2, k = rnd.nextDouble() * 0.5;
-            double x = Well.SX + Math.cos(a) * 30 * k, z = Well.SZ + Math.sin(a) * 30 * k;
-            c.limbs.add(new double[]{x, Well.TOP + 2, z, x + (rnd.nextDouble() - 0.5) * 3, Well.TOP - 6 - rnd.nextDouble() * 10, z + (rnd.nextDouble() - 0.5) * 3, 0.9, 0.4});
+            double x = Well.SX + Math.cos(a) * 24 * k, z = Well.SZ + Math.sin(a) * 24 * k;
+            c.limbs.add(new double[]{x, Well.TOP + 2, z, x + (rnd.nextDouble() - 0.5) * 3, Well.TOP - 6 - rnd.nextDouble() * 6, z + (rnd.nextDouble() - 0.5) * 3, 0.9, 0.4});
         }
-        // 人走的地方
-        c.keepOut.add(new double[]{Well.CAB_X - 2, Well.CAB_Y - 2, Well.PATH_Z0 - 3, Well.LEDGE_X1 + 1, Well.CAB_Y + 5, Well.PATH_Z1 + 3});
-        for (int i = 0; i < Well.STEPS; i += 4) {
-            double x = Well.TRUSS_X0 + i, y = Well.stepY(i);
-            c.keepOut.add(new double[]{x - 1, y - 5, Well.PATH_Z0 - 3, x + 5, y + 5, Well.PATH_Z1 + 3});
-        }
-        c.keepOut.add(new double[]{Well.FOOT_X0 - 1, Well.BAG_Y - 4, Well.PATH_Z0 - 9, Well.LADDER_X + 1.2, Well.FOOT_Y + 5, Well.PATH_Z1 + 3});
+        // 肉箍：一大团肉从井壁上鼓出来，压在那截断楼梯头顶上（头顶只挖到 1.5 格高，要蹲着过）
+        c.limbs.add(Well.hoop());
+        // 卡住的电梯
+        c.keepOut.add(new double[]{Well.CAB_X - 2, Well.CAB_Y - 2, Well.CAB_Z - 2, Well.CAB_X + 4, Well.CAB_Y + 4.5, Well.CAB_Z + 4});
+        // 最底下那块平台和车门口
+        c.keepOut.add(new double[]{Well.BAG_X0 - 0.5, Well.BAG_Y - 0.3, Well.BAG_Z0 - 1, Well.BAG_X1 + 1, Well.BAG_Y + 3.4, Well.BAG_Z1 + 1});
         // 车顺着断缆滑下去的那条：每隔一段一个盒子
         for (int k = 0; k <= 12; k++) {
             double t = k / 12.0;
             double x = Well.CAR_FROM[0] + (Well.CAR_TO[0] - Well.CAR_FROM[0]) * t, y = Well.CAR_FROM[1] + (Well.CAR_TO[1] - Well.CAR_FROM[1]) * t, z = Well.CAR_FROM[2] + (Well.CAR_TO[2] - Well.CAR_FROM[2]) * t;
-            c.keepOut.add(new double[]{x - 8, y - 2, z - 4, x + 3, y + 6, z + 4});
+            c.keepOut.add(new double[]{x - 8, y - 2, z - 3.5, x + 3, y + 6, z + 3});
         }
         // 真楼和井底的落脚处
         c.keepOut.add(new double[]{ParkPlan.DRUM_X + Well.DX - ParkPlan.DRUM_R - 16, Well.REAL_FLOOR, -ParkPlan.DRUM_R - 1, ParkPlan.DRUM_X + Well.DX + ParkPlan.DRUM_R + 1, Well.REAL_FLOOR + 24, ParkPlan.DRUM_R + 1});
@@ -229,7 +235,14 @@ public final class Chamber {
             r = 13 * (0.55 + 1.1 * n1) - lump * 8;
         } else if (style == Style.WELL) {
             double ang = Math.atan2(z - Well.SZ, x - Well.SX);
-            r = Well.radius(y) * (0.9 + 0.22 * n1) - lump * 5 + Math.cos(ang * 7 + y * 0.035 + warp * 5) * 1.4;
+            // 井口那一圈和大腔起伏大；喉咙里收着点，不然落脚处贴不住井壁
+            double wild = Well.radius(y) * (0.9 + 0.22 * n1) - lump * 5 + Math.cos(ang * 7 + y * 0.035 + warp * 5) * 1.4;
+            double tame = Well.radius(y) * (0.97 + 0.07 * n1) - lump * 1.6 + Math.cos(ang * 7 + y * 0.035 + warp * 5) * 0.6;
+            // 一道道环形的肉箍，隔六七格往里鼓一圈
+            double ring = 0.5 + 0.5 * Math.cos(2 * Math.PI * y / 6.5 + warp * 3 + ang * 0.5);
+            tame -= ring * ring * ring * ring * 1.8;
+            double throat = Noise.smooth(Well.THROAT_BOTTOM - 3, Well.THROAT_BOTTOM + 3, y) * (1 - Noise.smooth(Well.THROAT_TOP, Well.THROAT_TOP + 5, y));
+            r = Noise.mix(wild, tame, throat);
         } else {
             r = 0;
         }
@@ -246,8 +259,9 @@ public final class Chamber {
             v = Math.min(v, y - 226);
         }
         if (style == Style.WELL) {
-            // 井口以上、井底以下都是肉
+            // 井口以上、井底以下都是肉；落脚处背后、底下长满
             v = Math.max(v, Math.max(Well.BOTTOM - y, y - Well.TOP));
+            v = Well.fleshNear(x, y, z, v);
         }
         // 深沟
         double groove = 1 - Math.abs(2 * Noise.fbm(x * 0.15 + warp * 4, y * 0.15, z * 0.15, 2) - 1);
@@ -271,6 +285,8 @@ public final class Chamber {
             double out = Math.max(Math.max(Math.max(b[0] - x, x - b[3]), Math.max(b[1] - y, y - b[4])), Math.max(b[2] - z, z - b[5]));
             v = smin(v, out, 2.5);
         }
+        // 落脚处头顶、跳过去那一路挖空
+        if (style == Style.WELL) v = Well.airNear(x, y, z, v);
         return v;
     }
 

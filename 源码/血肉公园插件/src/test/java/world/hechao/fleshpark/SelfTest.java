@@ -158,35 +158,115 @@ public final class SelfTest {
         return b == null || b.name().startsWith("LIGHT_");
     }
 
-    /** 深井：电梯口平台 → 4 号支撑一级一级往下 → 支撑脚 → 绳梯 → 防水袋平台；井底绕到真楼的码头，码头进大厅，大厅下楼梯到花园层，花园层走进机房。 */
+    /**
+     * 深井：电梯门口的平台 → 一截截断楼梯 → 横穿井心的钢梁 → 井壁上伸出来的肉块 → 最底下那块平台，一处一处跳下去；
+     * 井底绕到真楼的码头，码头进大厅，大厅下楼梯到花园层。
+     */
     private static void well(ParkPlan plan) {
-        walk(plan, "卡住的电梯走上平台", new double[][]{{Well.CAB_X + 1.5, -19.5}, {Well.LEDGE_X1 + 0.5, -19.5}}, Well.CAB_Y);
-        boolean steps = true;
-        String bad = "";
-        for (int i = 0; i < Well.STEPS; i++) {
-            int x = Well.TRUSS_X0 + i, y = Well.stepY(i);
-            for (int z = Well.PATH_Z0 + 1; z <= Well.PATH_Z1 - 1; z++) {
-                if (plan.block(x, y, z) != B.STAIR_W || !air(plan.block(x, y + 1, z)) || !air(plan.block(x, y + 2, z))) {
-                    steps = false;
-                    bad = x + "," + y + "," + z;
+        walk(plan, "卡住的电梯走上平台", new double[][]{{Well.CAB_X + 1.5, Well.CAB_Z + 1.5}, {Well.CAB_X + 6.5, Well.CAB_Z + 1.5}}, Well.CAB_Y);
+        java.util.List<Well.Hold> holds = Well.HOLDS;
+        check("往下那一路从电梯门口一处处到最底下的平台（" + holds.size() + " 处）", holds.get(0).top() == Well.CAB_Y && holds.get(holds.size() - 1).top() == Well.BAG_Y && holds.size() > 30,
+                holds.get(0).top() + " → " + holds.get(holds.size() - 1).top());
+        // 每一格：脚下有面、头顶空着（肉箍底下压到 1.5 格）；断楼梯和肉块靠井壁那一面有墙
+        int noFloor = 0, noHead = 0, low = 0, open = 0, small = 0, cells = 0;
+        String first = "";
+        for (Well.Hold h : holds) {
+            if (h.cells.size() < (h.kind == 'B' ? 4 : 3)) {
+                small++;
+                if (first.isEmpty()) first = "第 " + h.index + " 处只有 " + h.cells.size() + " 格";
+            }
+            for (double[] c : h.cells) {
+                cells++;
+                int x = (int) c[0], z = (int) c[2], fl = (int) Math.floor(c[1]);
+                boolean half = c[1] - fl > 0.25;
+                String here = String.format("第 %d 处 %c (%d,%.1f,%d)", h.index, h.kind, x, c[1], z);
+                B under = half ? plan.block(x, fl, z) : plan.block(x, fl - 1, z);
+                boolean floor = half ? under == B.STEP_HALF || under == B.GRATE_HALF || under == B.FOOT_HALF : under != null && under != B.BARRIER && !under.isWalkable();
+                if (!floor) {
+                    noFloor++;
+                    if (first.isEmpty()) first = "没有面 " + here + " " + under;
+                }
+                // 钢梁十字交叉的那一格，头顶正好压着上一根（只剩 2 格，站得下；人不从那一格走）
+                double room = c[3] > 0 ? 1.5 : h.kind == 'B' ? 1.85 : 2.3;
+                for (int y = half ? fl + 1 : fl; y < c[1] + room - 1e-6; y++) {
+                    B b = plan.block(x, y, z);
+                    if (b != null && !b.isWalkable()) {
+                        noHead++;
+                        if (System.getenv("WELL_DEBUG") != null) System.out.println("  头顶挡着 " + here + " " + b + " 在 " + y);
+                        if (first.isEmpty()) first = "头顶挡着 " + here + " " + b + " 在 " + y;
+                    }
+                }
+                if (c[3] > 0 && plan.block(x, fl + 2, z) != B.BARRIER) {
+                    low++;
+                    if (first.isEmpty()) first = "肉箍底下没压低 " + here;
+                }
+                if (h.kind == 'S' || h.kind == 'D') {
+                    double dx = x + 0.5 - Well.SX, dz = z + 0.5 - Well.SZ, r = Math.hypot(dx, dz);
+                    int ox = (int) Math.floor(x + 0.5 + dx / r), oz = (int) Math.floor(z + 0.5 + dz / r);
+                    boolean mine = false;
+                    for (double[] q : h.cells) mine |= (int) q[0] == ox && (int) q[2] == oz;
+                    B b = plan.block(ox, fl + 1, oz);
+                    // 外面那格还在这一处的里外范围内，就是两处之间的空档（本来就该敞着）
+                    boolean beyond = Math.hypot(ox + 0.5 - Well.SX, oz + 0.5 - Well.SZ) > h.rOut;
+                    if (!mine && beyond && (b == null || b.isWalkable())) {
+                        open++;
+                        if (System.getenv("WELL_DEBUG") != null) System.out.println("  靠井壁那面没墙 " + here + " 外面那格 " + ox + "," + oz + " " + b);
+                        if (first.isEmpty()) first = "靠井壁那面没墙 " + here;
+                    }
                 }
             }
-            boolean fenced = plan.block(x, y + 1, Well.PATH_Z0 - 1) == B.BARRIER && plan.block(x, y + 2, Well.PATH_Z0 - 1) == B.BARRIER && plan.block(x, y + 1, Well.PATH_Z1 + 1) == B.BARRIER && plan.block(x, y + 2, Well.PATH_Z1 + 1) == B.BARRIER;
-            if (!fenced) {
-                steps = false;
-                bad = "栏杆 " + x;
+        }
+        check("每一处脚下有面、头顶空着、靠井壁有墙（" + cells + " 格）", noFloor + noHead + low + open + small == 0,
+                "没面 " + noFloor + "，头顶挡 " + noHead + "，肉箍没压低 " + low + "，靠墙没墙 " + open + "，太小 " + small + "；第一处 " + first);
+        // 每一跳：不往上跳、落差不超过 3.5 格、空档不超过 2 格；起跳点、落脚点在格子上；跳过去那一路没东西挡着
+        int up = 0, deep = 0, wide = 0, off = 0, blocked = 0;
+        first = "";
+        for (int i = 0; i + 1 < holds.size(); i++) {
+            Well.Hold a = holds.get(i), b = holds.get(i + 1);
+            String here = "第 " + i + "→" + (i + 1) + " 处";
+            double drop = a.out[1] - b.in[1];
+            if (drop < -0.01) {
+                up++;
+                if (first.isEmpty()) first = "往上跳 " + here;
+            }
+            if (drop > 3.51) {
+                deep++;
+                if (first.isEmpty()) first = "落太深 " + here + " " + drop;
+            }
+            double gap = 1e9;
+            for (double[] p : a.cells) for (double[] c : b.cells) gap = Math.min(gap, Math.hypot(Math.max(0, Math.abs(p[0] - c[0]) - 1), Math.max(0, Math.abs(p[2] - c[2]) - 1)));
+            if (gap > 2.01) {
+                wide++;
+                if (first.isEmpty()) first = "空档太宽 " + here + " " + gap;
+            }
+            if (!onCell(a, a.out) || !onCell(b, b.in) || !onCell(a, a.in) || !onCell(a, new double[]{a.out[0], a.out[1], a.out[2]})) {
+                off++;
+                if (System.getenv("WELL_DEBUG") != null) System.out.println("  起跳或落脚不在格子上 " + here + " out " + java.util.Arrays.toString(a.out) + " in " + java.util.Arrays.toString(b.in) + " a.in " + java.util.Arrays.toString(a.in));
+                if (first.isEmpty()) first = "起跳或落脚不在格子上 " + here;
+            }
+            // 起跳点到落脚点：身子扫过去的地方（脚下 0.3 到头顶，跳起来中间再高 1 格）不能有方块
+            for (double k = 0.05; k <= 0.95; k += 0.05) {
+                double x = a.out[0] + (b.in[0] - a.out[0]) * k, z = a.out[2] + (b.in[2] - a.out[2]) * k;
+                double y = a.out[1] + (b.in[1] - a.out[1]) * k * k + (gap > 0.5 ? 4 * k * (1 - k) : 0);
+                for (double h = 0.3; h <= 1.7; h += 0.7) {
+                    int bx = (int) Math.floor(x), by = (int) Math.floor(y + h), bz = (int) Math.floor(z);
+                    B blk = plan.block(bx, by, bz);
+                    // 起跳那一处、落脚那一处自己的方块（脚底下的）不算挡：人是先走到边上再往下掉
+                    if (ownBlock(a, bx, by, bz) || ownBlock(b, bx, by, bz)) continue;
+                    if (blk != null && !blk.isWalkable()) {
+                        blocked++;
+                        if (System.getenv("WELL_DEBUG") != null) System.out.println("  跳过去挡着 " + here + String.format(" (%.1f,%.1f,%.1f) %s", x, y + h, z, blk));
+                        if (first.isEmpty()) first = "跳过去挡着 " + here + String.format(" (%.1f,%.1f,%.1f) %s", x, y + h, z, blk);
+                    }
+                }
             }
         }
-        check("4 号支撑的台阶一级一级连着，两边拦着，头顶空着", steps, bad);
-        for (int i = 0; i + 1 < Well.STEPS; i += 10) {
-            int to = Math.min(Well.STEPS, i + 10);
-            trek(plan, "顺着支撑往下走（第 " + i + " 到 " + to + " 级）", new double[][]{{Well.TRUSS_X0 + i + 0.5, -19.5}, {Well.TRUSS_X0 + to + 0.5, -19.5}}, Well.stepY(i) + 1);
-        }
-        walk(plan, "支撑脚下的平台走到梯子口", new double[][]{{Well.FOOT_X0 + 0.5, -19.5}, {Well.FOOT_X1 + 0.5, -19.5}}, Well.FOOT_Y);
-        boolean ladder = true;
-        for (int y = Well.BAG_Y; y <= Well.FOOT_Y + 1; y++) ladder &= plan.block(Well.LADDER_X, y, Well.LADDER_Z) == B.LADDER_W && plan.block(Well.LADDER_X + 1, y, Well.LADDER_Z) == B.STEEL;
-        check("绳梯从支撑脚一直挂到防水袋平台，背后是钢柱", ladder, "");
-        walk(plan, "防水袋平台走得动", new double[][]{{Well.BAG_X0 + 0.5, -19.5}, {Well.BAG_X1 - 0.5, -19.5}, {Well.BAG_X1 - 0.5, -21.5}}, Well.BAG_Y);
+        check("每一跳跳得过去：不往上、落差 ≤3.5、空档 ≤2、路上没挡", up + deep + wide + off + blocked == 0,
+                "往上 " + up + "，太深 " + deep + "，太宽 " + wide + "，不在格子上 " + off + "，挡着 " + blocked + "；第一处 " + first);
+        boolean fenced = true;
+        for (int x = Well.BAG_X0; x <= Well.BAG_X1; x++) fenced &= plan.block(x, Well.BAG_Y, Well.BAG_Z0 - 1) == B.BARRIER && plan.block(x, Well.BAG_Y + 1, Well.BAG_Z0 - 1) == B.BARRIER;
+        check("平台北边车门那几格先拦着", fenced, "");
+        parkourSteps();
         walk(plan, "井底落脚处绕到真楼的码头", new double[][]{{Well.CAR_TO[0] - 2, Well.CAR_TO[2] + 3}, {488, -32}, {478, -20}, {474, -8}, {476, 0}, {480, 3}}, Well.REAL_FLOOR);
         int d = Well.DX;
         walk(plan, "真码头走进大厅", new double[][]{{ParkPlan.DOCK_OFF[0] + d, 3.5}, {108 + d, 4.5}, {112 + d, 4.5}, {124 + d, 7}, {130 + d, 8}}, Well.REAL_FLOOR);
@@ -196,6 +276,147 @@ public final class SelfTest {
         check("井底一圈看不见的墙", plan.block(Well.SX + 45, Well.REAL_FLOOR, Well.SZ) == B.BARRIER && plan.block(Well.SX, Well.REAL_FLOOR, Well.SZ - 45) == B.BARRIER, "");
     }
 
+    private static boolean ownBlock(Well.Hold h, int x, int y, int z) {
+        for (double[] c : h.cells) if ((int) c[0] == x && (int) c[2] == z && y < c[1]) return true;
+        return false;
+    }
+
+    /** 两处之间隔着几格（最近的两格之间）。 */
+    private static double cellGap(Well.Hold a, Well.Hold b) {
+        double gap = 1e9;
+        for (double[] p : a.cells) for (double[] c : b.cells) gap = Math.min(gap, Math.hypot(Math.max(0, Math.abs(p[0] - c[0]) - 1), Math.max(0, Math.abs(p[2] - c[2]) - 1)));
+        return gap;
+    }
+
+    /** 从 a 到 b 是往旁边一迈、直接落下去（挨着，落差两格以上），不用跳。 */
+    private static boolean stepOff(Well.Hold a, Well.Hold b) {
+        return cellGap(a, b) < 0.01 && a.out[1] - b.in[1] >= 1.9;
+    }
+
+    private static boolean onCell(Well.Hold h, double[] q) {
+        for (double[] c : h.cells) if ((int) c[0] == (int) Math.floor(q[0]) && (int) c[2] == (int) Math.floor(q[2]) && Math.abs(c[1] - q[1]) < 0.6) return true;
+        return false;
+    }
+
+    /**
+     * 给实测脚本写一份跳下去的步骤（build/well-parkour-test.txt）：贴井壁的、跳空档的用 h（走到边上自动起跳），钢梁往旁边一迈用 g（直接走下去）。
+     * 缠腿连按左键、吸脚连按空格、肉箍蹲着走；几个地方拍一张。
+     */
+    private static void parkourSteps() {
+        java.util.List<Well.Hold> holds = Well.HOLDS;
+        StringBuilder out = new StringBuilder();
+        out.append("w 3\nc cmd fp fx meshstat on\nc cmd fp tp well\nw 10\nc shot p00_cab\n");
+        Well.Hold land = holds.get(0);
+        out.append(String.format("g %.2f %.2f 8%ng %.2f %.2f 8%n", land.in[0], land.in[2], land.out[0], land.out[2]));
+        java.util.Set<Integer> grab = new java.util.HashSet<>(), suck = new java.util.HashSet<>();
+        for (int g : Well.GRAB) grab.add(g);
+        for (int g : Well.SUCK) suck.add(g);
+        java.util.Map<Integer, String> shots = new java.util.HashMap<>();
+        shots.put(1, "p01_first_stair");
+        shots.put(Well.SQUEEZE, "p02_squeeze");
+        shots.put(Well.TRUSS, "p03_truss");
+        shots.put(Well.FIRST_BEAM, "p04_first_beam");
+        shots.put(Well.FIRST_BEAM + 5, "p05_beams");
+        shots.put(Well.FIRST_DEBRIS, "p06_first_debris");
+        shots.put(Well.LAMPS_FROM, "p07_lamps");
+        shots.put(Well.FIRST_DEBRIS + 10, "p08_debris");
+        shots.put(Well.BAG, "p09_bag");
+        double[] target = null;
+        for (int i = 1; i < holds.size(); i++) {
+            Well.Hold a = holds.get(i - 1), h = holds.get(i);
+            // 检查点：掉下去被接到更下面了，前面这几处就跳过
+            out.append(String.format("k %.1f%n", a.bottom()));
+            // 挨着、往下落的（钢梁往旁边一迈）直接走下去；隔着空档的边走边跳（落脚以后不停，直接朝下一处走，走到边上就跳，有助跑）
+            double[] to = target != null ? target : h.in;
+            target = null;
+            out.append(String.format("%s %.2f %.2f 8%n", stepOff(a, h) ? "g" : "h", to[0], to[2]));
+            if (grab.contains(i)) out.append("w 1.5\n" + "c attack\nw 0.3\n".repeat(9) + "w 1.5\n");
+            if (suck.contains(i)) out.append("w 1\n" + "c jump 3\nw 0.35\n".repeat(7) + "w 1.5\n");
+            if (shots.containsKey(i)) {
+                // 拍之前看着前面两处：路往哪儿去一眼看得见
+                double[] look = holds.get(Math.min(holds.size() - 1, i + 2)).in;
+                out.append(String.format("w 0.4%nc lookat %.2f %.2f %.2f%nw 0.5%nc shot %s%n", look[0], look[1] + 0.3, look[2], shots.get(i)));
+            }
+            if (i + 1 >= holds.size()) continue;
+            Well.Hold b = holds.get(i + 1);
+            if (i == Well.SQUEEZE) {
+                // 蹲着走过肉箍，站起来，往回退一步半留出助跑
+                double dx = h.in[0] - h.out[0], dz = h.in[2] - h.out[2], len = Math.max(1e-6, Math.hypot(dx, dz));
+                out.append(String.format("c sneak 220%ng %.2f %.2f 14%nw 3%ng %.2f %.2f 6%n", h.out[0], h.out[2], h.out[0] + dx / len * 1.5, h.out[2] + dz / len * 1.5));
+            } else if (stepOff(h, b)) {
+                out.append(String.format("g %.2f %.2f 12%n", h.out[0], h.out[2]));
+            } else if (h.onWall()) {
+                // 像人一样顺着这一处跑到头再跳：先走到起跳点往回 1.6 格，从那儿顺着走向助跑，落到下一处正前方空得最少的那一格
+                // （直线朝下一处的落脚点走会在弧上抄近道，从缺角的地方起跳）
+                double r = Math.hypot(h.out[0] - Well.SX, h.out[2] - Well.SZ), phi = Well.phiNear(h.out[0], h.out[2], h.midPhi());
+                double[] run = Well.at(phi - 1.6 / r, r, 0);
+                if (!onAny(h, run[0], run[2])) run = nearestCell(h, run);
+                target = landing(h, b, run);
+                out.append(String.format("g %.2f %.2f 8%n", run[0], run[2]));
+            }
+        }
+        out.append("k 72\nc lookat 506.35 72.3 13.35\nc use\nl 冷光棒 6\nw 5\nc lookat 507.5 73.2 8.5\nc use\nl 807 发车 10\nl 807 到底 40\nw 2\nc shot p10_bottom\nc cmd fp status\nw 2\n");
+        try {
+            java.nio.file.Path file = java.nio.file.Path.of("build", "well-parkour-test.txt");
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, out.toString());
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean onAny(Well.Hold h, double x, double z) {
+        for (double[] c : h.cells) if ((int) c[0] == (int) Math.floor(x) && (int) c[2] == (int) Math.floor(z)) return true;
+        return false;
+    }
+
+    private static double[] nearestCell(Well.Hold h, double[] q) {
+        double best = 1e9;
+        double[] at = q;
+        for (double[] c : h.cells) {
+            double d = Math.hypot(c[0] + 0.5 - q[0], c[2] + 0.5 - q[2]);
+            if (d < best) {
+                best = d;
+                at = new double[]{c[0] + 0.5, c[1], c[2] + 0.5};
+            }
+        }
+        return at;
+    }
+
+    /**
+     * 从 run 助跑往下一处跳，落到哪一格：从 run 朝那一格直线走，脚下离开这一处的地方要过了起跳点附近，离开以后空得最少（空一样多就挑更靠前的）。
+     * 机器人走到脚前 0.4 格底下空了就起跳，和真人走到边上按空格一样。
+     */
+    private static double[] landing(Well.Hold h, Well.Hold next, double[] run) {
+        double reach = Math.hypot(h.out[0] - run[0], h.out[2] - run[2]) - 0.4;
+        double[] best = next.in;
+        double bestGap = 1e9;
+        for (double[] c : next.cells) {
+            if (c[3] > 0) continue;
+            double tx = c[0] + 0.5, tz = c[2] + 0.5, dx = tx - run[0], dz = tz - run[2], len = Math.hypot(dx, dz);
+            if (len < 1) continue;
+            double leave = -1, land = -1;
+            for (double s = 0; s <= len; s += 0.05) {
+                double x = run[0] + dx / len * s, z = run[2] + dz / len * s;
+                if (leave < 0 && !onAny(h, x, z)) leave = s;
+                if (leave >= 0 && onAny(next, x, z)) {
+                    land = s;
+                    break;
+                }
+                if (leave >= 0 && onAny(h, x, z)) {
+                    leave = -2;
+                    break;
+                }
+            }
+            if (leave < reach || land < 0) continue;
+            double gap = land - leave + 0.05 * Math.abs(len - leave - 1.5);
+            if (gap < bestGap) {
+                bestGap = gap;
+                best = new double[]{tx, c[1], tz};
+            }
+        }
+        return best;
+    }
 
     /** 和 leak 一样，范围自己给。 */
     private static int[] leakIn(ParkPlan plan, int x0, int y0, int z0, int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
@@ -281,7 +502,10 @@ public final class SelfTest {
                     continue;
                 }
                 onSlab = false;
-                for (double ox : new double[]{-0.3, 0.3}) for (double oz : new double[]{-0.3, 0.3}) onSlab |= plan.block((int) Math.floor(x + ox), feet, (int) Math.floor(z + oz)) == B.WALK_B;
+                for (double ox : new double[]{-0.3, 0.3}) for (double oz : new double[]{-0.3, 0.3}) {
+                    B under = plan.block((int) Math.floor(x + ox), feet, (int) Math.floor(z + oz));
+                    onSlab |= under == B.WALK_B || under == B.STEP_HALF || under == B.GRATE_HALF;
+                }
                 boolean ground = false;
                 while (!ground && feet > startFloor - 12) {
                     for (double ox : new double[]{-0.3, 0.3}) {
@@ -388,8 +612,8 @@ public final class SelfTest {
         starts.put("lockers", new int[]{Lower.LOCKER_X0 + 1, Lower.GARDEN_FLOOR, 1});
         starts.put("pools", new int[]{183, Lower.POOL1_FLOOR, 1});
         starts.put("forest", new int[]{300, 177, -58});
-        starts.put("well", new int[]{Well.LEDGE_X0 + 1, Well.CAB_Y, -20});
-        starts.put("rope", new int[]{Well.BAG_X0 + 1, Well.BAG_Y, -20});
+        starts.put("well", new int[]{(int) Math.floor(Well.HOLDS.get(Well.TRUSS).in[0]), (int) Math.floor(Well.HOLDS.get(Well.TRUSS).in[1]), (int) Math.floor(Well.HOLDS.get(Well.TRUSS).in[2])});
+        starts.put("rope", new int[]{Well.BAG_X0 + 2, Well.BAG_Y, Well.BAG_Z0 + 2});
         starts.put("real", new int[]{(int) ParkPlan.DOCK_OFF[0] + Well.DX, Well.REAL_FLOOR, 3});
         java.util.Map<String, java.util.Set<Long>> reach = new java.util.HashMap<>();
         StringBuilder script = new StringBuilder();
@@ -398,7 +622,10 @@ public final class SelfTest {
         for (Notes.Note n : Notes.all(plan)) {
             if (n.cabin()) continue;
             count++;
-            java.util.Set<Long> cells = reach.computeIfAbsent(n.area(), a -> flood(plan, starts.get(a)));
+            // 深井里的纸落在一处处落脚的地方上，中间要跳（跳不跳得过去另外查）：从纸底下那一格开始找
+            java.util.Set<Long> cells = n.area().equals("well")
+                    ? reach.computeIfAbsent(n.id(), a -> flood(plan, new int[]{(int) Math.floor(n.x()), (int) Math.floor(n.y() + 0.2), (int) Math.floor(n.z())}))
+                    : reach.computeIfAbsent(n.area(), a -> flood(plan, starts.get(a)));
             double ax = n.x(), ay = n.y() + 0.06, az = n.z();
             // 摆设没有碰撞，点得到也可能根本看不见：纸不能埋在摆设里，视线也不能穿过摆设
             java.util.List<Parts.Box> near = new java.util.ArrayList<>();
@@ -420,6 +647,7 @@ public final class SelfTest {
             }
             if (at == null || buried) {
                 bad++;
+                if (System.getenv("WELL_DEBUG") != null) System.out.println("  读不到 " + n.id() + String.format(" (%.2f,%.2f,%.2f)", ax, ay, az) + " 埋着 " + buried + " 走得到的格子 " + cells.size());
                 if (first.length() < 200) first.append(n.id()).append(' ');
                 continue;
             }
@@ -451,7 +679,7 @@ public final class SelfTest {
             if (b == null || b.name().startsWith("LIGHT_")) continue;
             // 半砖和地毯只占一部分，纸可以放在上面
             boolean inside = switch (b) {
-                case BENCH, WALK_B -> fy < 0.5;
+                case BENCH, WALK_B, STEP_HALF, GRATE_HALF, FOOT_HALF -> fy < 0.5;
                 case TABLE, WALK_T -> fy >= 0.5;
                 case DEBRIS, DEBRIS_DARK -> fy < 0.0625;
                 default -> true;
@@ -481,7 +709,12 @@ public final class SelfTest {
                 if (gate(nx, c[1], nz)) continue;
                 for (int ny = c[1] + 1; ny >= c[1] - 4; ny--) {
                     if (!free(plan, nx, ny, nz)) {
-                        if (ny <= c[1]) break;
+                        if (ny <= c[1]) {
+                            // 半砖上头顶压得低（肉箍底下）：人站在半砖面上，蹲着刚好过得去
+                            B slab = plan.block(nx, ny - 1, nz);
+                            if ((slab == B.STEP_HALF || slab == B.WALK_B || slab == B.GRATE_HALF) && free(plan, nx, ny - 1, nz) && seen.add(cell(nx, ny - 1, nz))) queue.add(new int[]{nx, ny - 1, nz});
+                            break;
+                        }
                         continue;
                     }
                     if (!stand(plan, nx, ny, nz)) continue;

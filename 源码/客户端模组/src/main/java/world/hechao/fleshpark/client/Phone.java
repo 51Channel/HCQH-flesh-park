@@ -89,6 +89,13 @@ final class Phone {
             case "next" -> flip(1);
             case "prev" -> flip(-1);
             case "on" -> owned = true;
+            // 收尾：手机自己举起来，翻到最新那条
+            case "show" -> {
+                if (!owned || INBOX.isEmpty()) return;
+                open = true;
+                at = INBOX.size() - 1;
+            }
+            case "hide" -> open = false;
             default -> flipOpen();
         }
     }

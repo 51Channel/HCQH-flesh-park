@@ -19,6 +19,24 @@ final class ClientFx {
     private static boolean breathing;
     static long ticks;
 
+    /** 发疯最后那几秒：视野往外撑开（倍数）、画面一层层变红。按真实时间插，每一帧都顺。 */
+    private static float fovFrom = 1, fovTo = 1, redFrom, redTo;
+    private static long fovAt, fovMs = 1, redAt, redMs = 1;
+
+    static float fov() {
+        return ramp(fovFrom, fovTo, fovAt, fovMs);
+    }
+
+    static float red() {
+        return ramp(redFrom, redTo, redAt, redMs);
+    }
+
+    private static float ramp(float from, float to, long at, long ms) {
+        float t = Math.max(0, Math.min(1, (System.currentTimeMillis() - at) / (float) ms));
+        // 先慢后快：越撑越猛
+        return from + (to - from) * t * t;
+    }
+
     /** 现在这一段能看见哪些整块的肉：位 0 零碎的肉，1 缆车腔，2 森林，3 穹顶，4 腺泡。 */
     static int chambers = ~0;
     /** 1 大厅层，2 楼下，3 森林那一头。隔着楼板和岩层的零碎肉不画。 */
@@ -74,6 +92,18 @@ final class ClientFx {
                     heave = f(a[5]);
                 }
                 case "pulse" -> pulse = f(a[1]);
+                case "fov" -> {
+                    fovFrom = fov();
+                    fovTo = f(a[1]);
+                    fovAt = System.currentTimeMillis();
+                    fovMs = Math.max(1, i(a[2]) * 50L);
+                }
+                case "red" -> {
+                    redFrom = red();
+                    redTo = f(a[1]);
+                    redAt = System.currentTimeMillis();
+                    redMs = Math.max(1, i(a[2]) * 50L);
+                }
                 case "breath" -> {
                     breathTarget = f(a[1]);
                     breathStep = Math.abs(breathTarget - breath) / Math.max(1, i(a[2]));
@@ -90,6 +120,8 @@ final class ClientFx {
                 case "flash" -> Overlay.flash();
                 case "cine" -> Overlay.cine(a.length > 1 && a[1].equals("on"));
                 case "cam" -> Cam.set(line);
+                case "camshake" -> Cam.shake = f(a[1]);
+                case "helmet" -> Overlay.helmet(a.length > 1 ? a[1] : "off");
                 case "doc" -> Overlay.doc(a.length > 1 ? a[1] : "off");
                 case "intro" -> Overlay.intro(line.length() > 6 ? line.substring(6).split("\\|") : null);
                 case "title" -> Overlay.title();
@@ -253,6 +285,8 @@ final class ClientFx {
     /** 重新进服、回到开局前：所有演出都清掉。 */
     static void reset() {
         black = blackTarget = warm = warmTarget = sick = sickTarget = 0;
+        fovFrom = fovTo = 1;
+        redFrom = redTo = 0;
         if (breathing) squeeze = 0;
         breath = breathTarget = 0;
         breathing = false;

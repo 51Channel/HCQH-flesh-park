@@ -43,6 +43,11 @@ final class FleshField {
     }
 
     void spawn(InputStream index) throws IOException {
+        spawn(index, "flesh_mesh");
+    }
+
+    /** 按锚点表放锚点：每行 编号 x y z 宽 高 深，物品模型是 model（肉的网格 flesh_mesh、深井钢结构 steel_mesh）。 */
+    void spawn(InputStream index, String model) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(index, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -52,7 +57,7 @@ final class FleshField {
                 float sx = Float.parseFloat(a[4]), sy = Float.parseFloat(a[5]), sz = Float.parseFloat(a[6]);
                 ItemStack stack = new ItemStack(Material.PAPER);
                 ItemMeta meta = stack.getItemMeta();
-                meta.setItemModel(new NamespacedKey("fleshpark", "flesh_mesh"));
+                meta.setItemModel(new NamespacedKey("fleshpark", model));
                 CustomModelDataComponent data = meta.getCustomModelDataComponent();
                 data.setFloats(List.of((float) id));
                 meta.setCustomModelDataComponent(data);

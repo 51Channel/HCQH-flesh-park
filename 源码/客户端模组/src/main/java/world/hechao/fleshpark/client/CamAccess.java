@@ -8,4 +8,9 @@ public final class CamAccess {
     public static boolean active() {
         return Cam.active();
     }
+
+    /** 发疯最后视野往外撑开的倍数（平时是 1）。 */
+    public static float fov() {
+        return ClientFx.fov();
+    }
 }

@@ -1,0 +1,28 @@
+w 3
+c cmd fp tp truss
+w 5
+c shot t1_truss
+g 520.62 -9.36 6
+w 1
+c cmd tp 510.5 143 0.5
+w 6
+c shot t2_after_fall
+c cmd fp tp car
+w 6
+c lookat 506.35 72.3 13.35
+c use
+w 3
+c lookat 507.5 73.2 8.5
+c use
+l 807 发车 10
+w 4
+c shot car1_riding
+c sneak 10
+w 3
+c shot car2_after_shift
+l 807 到底 40
+w 3
+c shot car4_bottom
+g 488 -32 10
+w 1
+c shot car5_walk

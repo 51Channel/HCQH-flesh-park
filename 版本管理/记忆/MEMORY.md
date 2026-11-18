@@ -1,0 +1,16 @@
+- [《血肉公园》定位](flesh-park-concept.md) — 单人实况；性能要管；只要一个开放式结尾；导演栏按流程排；现行第五稿 0.5.0：公司管不了它、只派体验官评估，第一关游客中心是它照着井底那座抄的，回程电梯出事故掉进井里，井底真楼只复刻出事那晚、读完原件疯一小段（只有呼吸）接旧打分平面，绝不进车站；规矩在 版本管理/第五稿改稿.md
+- [血肉公园第五稿规矩](flesh-park-fifth-draft-rules.md) — 开场别让"我"讲解；2007 年的人不怕它；文字恐怖；不跟过去对话；真相靠意外；井底真楼只复刻出事那晚、不能有"我"；别叠滤镜
+- [血肉公园纸条口吻](flesh-park-notes-voice.md) — 2007 年的人出事前不怕它、大意，出事那晚才慌；要像真人写的信和留言；只有公司文件是冷的
+- [血肉公园结尾](flesh-park-epilogue.md) — 发疯→FOV撑开变红→打分页就收；打分后再接后日谈揭秘被否（出戏）；坑要在后半段用物件慢慢填，不单设揭秘段
+- [血肉公园深井要螺旋](flesh-park-well-spiral.md) — 贴着肉壁一圈圈往下、要压迫感、一块块落脚点跳下去（攀岩/跑酷），连续台阶被否；空旷大井、穿井心直桥被否，螺旋别画成 Z 字
+- [血肉公园画面要求](flesh-park-visual-feedback.md) — 幽暗、巨大、第一人称手电；肉要有深沟和湿亮面，光影要有灯向、雾和倒影；别做电影运镜
+- [血肉公园商业感](flesh-park-commercial-look.md) — 现代商业景区撞原始血肉；做画面先看参考视频的设定图
+- [血肉公园原作资料](flesh-park-original-source.md) — 官网入口、同人许可、入口解剖、2007 灾难时间线、哪些是原作哪些是自编
+- [血肉公园仓库](flesh-park-repo.md) — GitHub 私有 51Channel/HCQH-flesh-park；jar 挂 Releases；部署和实测脚本在 测试/
+- [实测开前台](test-in-foreground.md) — 用户要看着测时游戏窗口拉到前台、放大、开声音，别后台静默跑完；血肉公园用 FLESHPARK_SHOW=1
+- [Mac 启动器导入](mac-launcher-import.md) — 导入工具、.NET 位置、端口和 EULA 状态
+- [赫朝skill 位置](hechao-skill-location.md) — 私有仓库，用 gh 读；缺哪些专业技能
+- [用中文回复](reply-in-chinese.md) — 面向用户的文字一律中文
+- [交完整游戏不交原型](full-game-not-prototype.md) — 游戏该有的全要有；灰盒截图会被骂丑，先调到接近参考图再给看
+- [重做就是推倒](redo-means-rebuild.md) — "整段重做"要换做法和素材，只调参数会被骂
+- [看完整个视频](watch-whole-video.md) — 要读完全片台词字幕，不能只稀疏抽帧；有过误判作者的教训

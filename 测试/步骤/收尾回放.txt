@@ -1,0 +1,36 @@
+w 3
+c cmd fp tp ending
+w 3
+c lookat 508.4 4.3 2
+w 1.5
+c use
+w 0.5
+w 3.0
+c shot r01_stairs
+w 3.5
+c shot r02_backs
+w 5.5
+c shot r03_face
+w 7.0
+c shot r04_rows
+w 9.0
+c shot r05_up
+w 9.5
+c shot r06_down
+w 5.5
+c shot r07_well
+w 7.5
+c shot r08_stairs
+w 8.5
+c shot r09_luo
+w 4.0
+c shot r10_turn
+w 3.5
+c shot r11_turned
+w 4.0
+c shot r12_sink
+w 5.5
+c shot r13_now
+w 24.0
+c shot r14_after
+w 2

@@ -154,7 +154,7 @@ final class Bus {
         // 第一排前面一块矮挡板，再往前就是车门。挡板要矮，坐着往前看是挡风玻璃和路
         box(TRIM, 3.45, FLOOR + 0.05, 0.3, 0.04, 0.6, 0.9, -1);
         box("minecraft:yellow_concrete", DOOR_X0, FLOOR, HALF - 0.17, DOOR_X1 - DOOR_X0, 0.01, 0.12, -1);
-        // 司机隔间：背后一堵墙，旁边拉着深色的帘子，只留一个喇叭。墙上贴着运送单，司机用马克笔记的数，37 个
+        // 司机隔间：背后一堵墙，旁边拉着深色的帘子，只留一个喇叭。墙上贴着运送单，司机用马克笔记的数：往里送了 11 个（前十个加你），回来那一栏一笔没有
         double cab = -HALF, mid = (-HALF - CAB_Z) / 2;
         box(TRIM, 3.55, FLOOR, cab, 0.06, ROOF - FLOOR, HALF - CAB_Z, -1);
         // 帘子：平时拉着；换班那辆拉开，堆在隔间后墙边上
@@ -163,7 +163,7 @@ final class Bus {
         text("请勿与驾驶员交谈", 3.54, 2.2, mid, -90f, 0x24211f, 0.15f, 0, -1);
         box("minecraft:white_concrete", 3.535, 1.2, mid - 0.27, 0.01, 0.5, 0.54, -1);
         text("运送单  No. 0011\n乘员：体验官 #0011\n目的地：息壤地面站\n回程：", 3.53, 1.24, mid, -90f, 0x24211f, 0.17f, 0, -1);
-        text(driving ? "正正正正正正正下" : "正正正正正正正丅", 3.53, 1.85, mid, -90f, 0x1a1a1a, 0.22f, 0, -1);
+        textDisplay("送进去　正正一\n接回来　", 3.53, 1.8, mid, -90f, 0x1a1a1a, 0.2f, 0, -1).setAlignment(TextDisplay.TextAlignment.LEFT);
         box(DARK, 3.53, 2.56, cab + 0.05, 0.02, 0.2, HALF - CAB_Z - 0.1, -1);
         text("下一站  息壤地面站", 3.515, 2.6, mid, -90f, 0xff4030, 0.15f, 0, 15);
         box(DARK, 2.9, ROOF - 0.06, 0.25, 0.25, 0.04, 0.25, -1);
@@ -223,7 +223,8 @@ final class Bus {
         box(DARK, SHEET[0] + 0.02, SHEET[1] - 0.32, SHEET[2] - 0.27, 0.04, 0.62, 0.54, -1);
         box("minecraft:white_concrete", SHEET[0], SHEET[1] - 0.3, SHEET[2] - 0.25, 0.02, 0.58, 0.5, 11);
         text("运送单  No. 0039\n乘员：体验官 #0039\n目的地：息壤地面站\n回程：", SHEET[0] - 0.012, SHEET[1] - 0.26, SHEET[2], -90f, 0x24211f, 0.14f, 0, 13);
-        tally = textDisplay("正正正正正正正下", SHEET[0] - 0.012, SHEET[1] + 0.1, SHEET[2], -90f, 0x1a1a1a, 0.17f, 0, 13);
+        tally = textDisplay("送进去　正正一\n接回来　", SHEET[0] - 0.012, SHEET[1] + 0.1, SHEET[2], -90f, 0x1a1a1a, 0.17f, 0, 13);
+        tally.setAlignment(TextDisplay.TextAlignment.LEFT);
         // 方向盘
         wheel = world.spawn(root.getLocation(), ItemDisplay.class, d -> {
             d.setPersistent(false);
