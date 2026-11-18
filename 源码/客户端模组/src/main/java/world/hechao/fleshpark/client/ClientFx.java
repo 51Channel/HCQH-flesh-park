@@ -120,6 +120,8 @@ final class ClientFx {
                 case "flash" -> Overlay.flash();
                 case "cine" -> Overlay.cine(a.length > 1 && a[1].equals("on"));
                 case "cam" -> Cam.set(line);
+                case "walk" -> Walk.set(line);
+                case "rec" -> Rec.command(a);
                 case "camshake" -> Cam.shake = f(a[1]);
                 case "helmet" -> Overlay.helmet(a.length > 1 ? a[1] : "off");
                 case "doc" -> Overlay.doc(a.length > 1 ? a[1] : "off");
@@ -294,6 +296,7 @@ final class ClientFx {
         poolsNear = true;
         Cabin.reset();
         Cam.reset();
+        Walk.reset();
         Road.show(false);
         Audio.stopAll();
         Overlay.clear();

@@ -17,6 +17,7 @@ import java.util.List;
 /**
  * 导演栏里的「本轮修改」：这一轮按用户提的意见改了哪些地方，每条写原来怎样、现在怎样，
  * 右边「去看」一按就传到那个地方（或者从头演一遍那一段）。内容在 assets/fleshpark/changes.txt，跟着每次修改一起写。
+ * 「先导片」页也是它：内容在 teaser.txt，按钮是「走一段」。
  */
 final class ChangesScreen extends Screen {
     private static final int RED = 0xFFD74735, PAPER = 0xFFFFFBF5, INK = 0xFF24211F, INK_SOFT = 0xFF6B645E;
@@ -27,7 +28,8 @@ final class ChangesScreen extends Screen {
     }
 
     private final Screen back;
-    private final List<Change> changes = load();
+    private final String heading, button, hint;
+    private final List<Change> changes;
     private final List<int[]> hits = new ArrayList<>();
     private final List<Runnable> actions = new ArrayList<>();
     private double scroll;
@@ -36,13 +38,22 @@ final class ChangesScreen extends Screen {
     private long statusAt;
 
     ChangesScreen(Screen back) {
-        super(Component.literal("本轮修改"));
-        this.back = back;
+        this(back, "本轮修改", "changes.txt", "去看", "滚轮翻页。「去看」直接传过去演一遍，要管理员权限。");
     }
 
-    static List<Change> load() {
+    /** 同一个样子的清单页：导演栏的「先导片」也用它，清单换一个文件、按钮换个字。 */
+    ChangesScreen(Screen back, String heading, String file, String button, String hint) {
+        super(Component.literal(heading));
+        this.back = back;
+        this.heading = heading;
+        this.button = button;
+        this.hint = hint;
+        this.changes = load(file);
+    }
+
+    static List<Change> load(String file) {
         List<Change> out = new ArrayList<>();
-        try (InputStream in = ChangesScreen.class.getResourceAsStream("/assets/fleshpark/changes.txt")) {
+        try (InputStream in = ChangesScreen.class.getResourceAsStream("/assets/fleshpark/" + file)) {
             if (in == null) return out;
             String title = null, go = "", reshoot = "";
             List<String> body = new ArrayList<>();
@@ -70,8 +81,8 @@ final class ChangesScreen extends Screen {
         return out;
     }
 
-    static int count() {
-        return load().size();
+    static int count(String file) {
+        return load(file).size();
     }
 
     @Override
@@ -103,7 +114,7 @@ final class ChangesScreen extends Screen {
         g.drawString(font, backLabel, x0 + 14, y0 + 9, INK, false);
         hits.add(new int[]{x0 + 8, y0 + 6, bw, 14});
         actions.add(this::onClose);
-        String title = "本轮修改 · " + changes.size() + " 处";
+        String title = heading + " · " + changes.size() + (heading.equals("本轮修改") ? " 处" : " 段");
         g.drawString(font, title, x0 + (pw - font.width(title)) / 2, y0 + 9, INK, false);
         g.fill(x0 + 10, y0 + head - 2, x0 + pw - 10, y0 + head - 1, LINE);
 
@@ -134,7 +145,7 @@ final class ChangesScreen extends Screen {
                 boolean over = mouseX >= bx && mouseX < bx + btnW && mouseY >= by && mouseY < by + 16 && mouseY >= top && mouseY < bottom;
                 g.fill(bx + 2, by + 2, bx + btnW + 2, by + 18, INK);
                 g.fill(bx, by, bx + btnW, by + 16, over ? 0xFFB83A2A : RED);
-                g.drawString(font, "去看", bx + (btnW - font.width("去看")) / 2, by + 4, PAPER, false);
+                g.drawString(font, button, bx + (btnW - font.width(button)) / 2, by + 4, PAPER, false);
                 if (by + 16 > top && by < bottom) {
                     hits.add(new int[]{bx, Math.max(by, top), btnW, Math.min(by + 16, bottom) - Math.max(by, top)});
                     actions.add(() -> go(c));
@@ -142,12 +153,12 @@ final class ChangesScreen extends Screen {
             }
             y += cardH + 8;
         }
-        if (changes.isEmpty()) g.drawString(font, "这一轮还没有修改。", x0 + 14, top + 8, INK_SOFT, false);
+        if (changes.isEmpty()) g.drawString(font, "这一页还是空的。", x0 + 14, top + 8, INK_SOFT, false);
         contentH = y + (int) scroll - top;
         g.disableScissor();
 
         long now = System.currentTimeMillis();
-        String line = now - statusAt < 4000 ? status : "滚轮翻页。「去看」直接传过去演一遍，要管理员权限。";
+        String line = now - statusAt < 4000 ? status : hint;
         g.drawString(font, font.plainSubstrByWidth(line, pw - 24), x0 + 12, y0 + ph - foot + 3, now - statusAt < 4000 ? RED : INK_SOFT, false);
     }
 

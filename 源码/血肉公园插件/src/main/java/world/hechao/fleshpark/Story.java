@@ -4210,6 +4210,77 @@ final class Story {
         after(30, () -> dvNow(p));
     }
 
+    // ---------- 先导片素材 ----------
+
+    /**
+     * 导演栏「先导片」：视频开头介绍公园用的第一人称素材。每段先传到那个地方（和导演栏跳段一样），
+     * 停 5 秒等画面稳下来，再让客户端替人走几步、四处看看（walk）；走的时候藏掉准星、角标、字幕（rec clean）。
+     * 走路放慢到 0.065（平时 0.1），走完恢复。路线和 2026-11-18 在 Mac 上录的预览一模一样。
+     * 每段：去哪（发的指令）、走法、走完大概几秒。
+     */
+    private static final String[][] TEASER = {
+            {"fp tp station", "wait 0.8;fwd 4;turn 40 4 1.8;wait 0.9;turn -85 -4 2.8;wait 0.6;turn 45 6 1.7;fwd 4;wait 0.8", "15"},
+            {"fp jump mouth", "wait 2;turn -45 0 2.6;wait 1;turn 90 -12 3.6;wait 1;turn -45 8 2.6;wait 4", "18"},
+            {"fp tp hall", "wait 0.8;fwd 4;turn -50 4 1.8;wait 0.8;turn 100 -12 2.8;wait 0.6;turn -50 6 1.6;fwd 5;wait 0.8", "15"},
+            {"fp tp figure", "wait 1;turn -35 2 2;wait 0.6;turn 60 -4 2.6;wait 0.8;turn -25 0 1.6;wait 2", "12"},
+            {"fp tp garden", "wait 0.8;fwd 6;turn -60 0 2.2;wait 0.6;turn 120 -8 3;wait 0.6;turn -60 4 2;fwd 3;wait 0.8", "16"},
+            {"fp tp pool3", "wait 0.8;fwd 6;turn -45 0 2;wait 0.8;turn 90 -6 3;wait 0.6;turn -45 5 1.8;fwd 4;wait 0.8", "16"},
+            {"fp tp forest", "wait 0.8;fwd 6;turn 50 -15 2.4;wait 0.6;turn -100 -5 3;wait 0.6;turn 50 6 2;fwd 5;wait 0.8", "17"},
+            {"fp tp rim", "wait 1.5;turn 40 -60 3;wait 1;turn -80 -40 3.5;wait 0.6;turn 40 20 3;wait 0.6;turn 0 50 2.2;wait 1", "19"},
+            {"fp tp window2", "wait 0.8;fwd 1;turn -45 -15 2.2;wait 0.8;turn 90 -10 3;wait 0.8;turn -45 8 1.8;wait 0.8", "13"},
+    };
+    private int teaserRun;
+
+    /** fp teaser 1..9 走一段；fp teaser all 九段连着走；fp teaser off 停。 */
+    void teaser(Player p, String arg) {
+        int run = ++teaserRun;
+        fx.send(p, "walk off");
+        if (arg.equals("off")) {
+            teaserEnd(p);
+            return;
+        }
+        // 开场片还没放完的话先收掉：收的时候会清空排好的任务，不能等到第一段传送时才收
+        finishOpening(p);
+        int from, to;
+        if (arg.equals("all")) {
+            from = 0;
+            to = TEASER.length - 1;
+        } else {
+            try {
+                from = to = Integer.parseInt(arg) - 1;
+            } catch (NumberFormatException e) {
+                return;
+            }
+            if (from < 0 || from >= TEASER.length) return;
+        }
+        int at = 0;
+        for (int i = from; i <= to; i++) {
+            String[] shot = TEASER[i];
+            after(at, () -> {
+                if (teaserRun != run) return;
+                fx.send(p, "walk off");
+                p.performCommand(shot[0]);
+            });
+            after(at + 100, () -> {
+                if (teaserRun != run) return;
+                var speed = p.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+                if (speed != null) speed.setBaseValue(0.065);
+                fx.send(p, "rec clean on");
+                fx.send(p, "walk " + shot[1]);
+            });
+            at += 100 + Integer.parseInt(shot[2]) * 20 + 20;
+        }
+        after(at, () -> {
+            if (teaserRun == run) teaserEnd(p);
+        });
+    }
+
+    private void teaserEnd(Player p) {
+        var speed = p.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED);
+        if (speed != null) speed.setBaseValue(0.1);
+        fx.send(p, "rec clean off");
+    }
+
     void jump(String name, Player p) {
         switch (name) {
             case "garden" -> {

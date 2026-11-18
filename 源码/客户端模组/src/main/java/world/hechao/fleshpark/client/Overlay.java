@@ -287,6 +287,8 @@ final class Overlay {
     static void render(GuiGraphics g, DeltaTracker delta) {
         ClientFx.meshFrame();
         Minecraft mc = Minecraft.getInstance();
+        Walk.frame(mc);
+        Rec.frame(mc);
         if (!ParkFog.applies(mc.level)) return;
         int w = g.guiWidth(), h = g.guiHeight();
         if (ClientFx.warm > 0) tint(g, w, h, 0xE89A50, 0.2f * ClientFx.warm);
@@ -311,13 +313,13 @@ final class Overlay {
             drawCine(g, font, w, h);
         } else if (!paper) {
             if (helmetSec >= 0) drawHelmet(g, font, w, h);
-            else if (!tapeHidden) drawTape(g, font, w, h);
-            drawDepth(g, font, w, h, mc);
-            if (ClientFx.black < 0.5f) Tags.draw(g, font, w, h, mc);
+            else if (!tapeHidden && !Rec.clean) drawTape(g, font, w, h);
+            if (!Rec.clean) drawDepth(g, font, w, h, mc);
+            if (ClientFx.black < 0.5f && !Rec.clean) Tags.draw(g, font, w, h, mc);
             if (diaryAt >= 0) drawDiary(g, font, w, h);
-            Phone.draw(g, font, w, h, mc);
+            if (!Rec.clean) Phone.draw(g, font, w, h, mc);
             if (stampAt >= 0) drawStamp(g, font, w, h);
-            if (subAt >= 0) drawSubtitle(g, font, w, h);
+            if (subAt >= 0 && !Rec.clean) drawSubtitle(g, font, w, h);
             if (termAt >= 0) drawTerm(g, font, w, h);
         }
         drawGlitch(g, w, h);

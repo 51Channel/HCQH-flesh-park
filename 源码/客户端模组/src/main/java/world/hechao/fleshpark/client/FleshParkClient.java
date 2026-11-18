@@ -46,6 +46,7 @@ public final class FleshParkClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(FxPayload.TYPE, (payload, context) -> ClientFx.handle(payload.text()));
         ClientTickEvents.END_CLIENT_TICK.register(ClientFx::tick);
         ClientTickEvents.END_CLIENT_TICK.register(Cam::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(Walk::tick);
         // 手上拿着纸的时候，右键是把纸收起来，不去点世界里的东西
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             if (!Overlay.diaryOpen()) return;
@@ -64,7 +65,11 @@ public final class FleshParkClient implements ClientModInitializer {
         }
         // 入场片和收尾的时候不要准星
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, delta) -> {
-            if (!Overlay.cinematic()) original.render(graphics, delta);
+            if (!Overlay.cinematic() && !Rec.clean) original.render(graphics, delta);
+        });
+        // 录素材的时候聊天栏也不画
+        HudElementRegistry.replaceElement(VanillaHudElements.CHAT, original -> (graphics, delta) -> {
+            if (!Rec.clean) original.render(graphics, delta);
         });
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("fleshpark", "overlay"), Overlay::render);
     }
