@@ -45,7 +45,7 @@ final class Rec {
     private Rec() {
     }
 
-    /** rec start 名字 [half] | rec stop | rec clean on|off | rec fps 帧数 */
+    /** rec start 名字 [half] | rec stop | rec clean on|off | rec fps 帧数 | rec fullscreen on|off */
     static void command(String[] a) {
         var log = org.slf4j.LoggerFactory.getLogger("fleshpark");
         switch (a.length > 1 ? a[1] : "") {
@@ -54,6 +54,8 @@ final class Rec {
                     clip = Minecraft.getInstance().gameDirectory.toPath().resolve("fleshpark-rec").resolve(a[2]);
                     Files.createDirectories(clip);
                     index = new PrintWriter(Files.newBufferedWriter(clip.resolve("frames.tsv")), true);
+                    // 第一行记开录时的墙钟毫秒：和另外录的游戏声音对齐用
+                    index.println("#epoch\t" + System.currentTimeMillis());
                 } catch (Exception e) {
                     log.warn("录不了", e);
                     return;
@@ -74,6 +76,11 @@ final class Rec {
                 log.info("停录 帧 " + taken + " 时长 " + (Util.getMillis() - started) + "ms 丢 " + dropped);
             }
             case "fps" -> fps = Integer.parseInt(a[2]);
+            // 录成片时切全屏：窗口在 Mac 上拉不到 1080 高
+            case "fullscreen" -> {
+                var window = Minecraft.getInstance().getWindow();
+                if (window.isFullscreen() != a[2].equals("on")) window.toggleFullScreen();
+            }
             case "clean" -> clean = a.length < 3 || !a[2].equals("off");
             default -> {
             }
