@@ -957,7 +957,11 @@ public final class Well {
         }
         p.texts.add(new Text("独立日烟花  ·  易燃\n勿近明火", cx + 1.08, REAL_FLOOR + 1.3, cz + 0.62, 0f, 0xe8dcc0, 0.3f, 0, 2));
         // 低的一头泡在水里：窗边那半边大厅、整个花园层
-        p.pools.add(new Parts.Pool("pool_water", ParkPlan.HX0 + DX + 4, 5, ParkPlan.HX1 + DX, ParkPlan.HZ1, REAL_FLOOR + 0.12));
+        // 下花园层的楼梯洞（x 133–142、z 5–7）那一块不铺：不然洞口上横着一层水面，走楼梯下去会从水面里穿过去
+        int sx0 = ParkPlan.STAIR_TOP_X - 9 + DX, sx1 = ParkPlan.STAIR_TOP_X + 1 + DX;
+        p.pools.add(new Parts.Pool("pool_water", ParkPlan.HX0 + DX + 4, 5, sx0, ParkPlan.HZ1, REAL_FLOOR + 0.12));
+        p.pools.add(new Parts.Pool("pool_water", sx0, 8, ParkPlan.HX1 + DX, ParkPlan.HZ1, REAL_FLOOR + 0.12));
+        p.pools.add(new Parts.Pool("pool_water", sx1, 5, ParkPlan.HX1 + DX, 8, REAL_FLOOR + 0.12));
         p.pools.add(new Parts.Pool("pool_water", 110 + DX, -14, 152 + DX, 12, REAL_GARDEN + 0.35));
         // 码头和大厅之间：码头那边的看不见的墙拆了（damage 里没搬）。码头北边的轨道槽是井底地面，可以走上去
         for (int x = 95 + DX; x < ParkPlan.HX0 + DX; x++) walk.add(new double[]{x + 0.5, REAL_FLOOR, 4.5});
