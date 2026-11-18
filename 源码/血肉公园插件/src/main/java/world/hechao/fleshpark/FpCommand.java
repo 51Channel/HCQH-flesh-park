@@ -46,6 +46,12 @@ final class FpCommand implements CommandExecutor, TabCompleter {
             case "walkie" -> {
                 if (player != null) park.story.playWalkie(player);
             }
+            // 导演栏「本轮修改」：传到收尾，从头放一遍对讲机和头盔回放
+            case "replay" -> {
+                if (player == null) return true;
+                park.ride.reset(true);
+                park.story.walkieReplay(player);
+            }
             case "scare" -> {
                 if (player != null) park.story.glassScare(player);
             }

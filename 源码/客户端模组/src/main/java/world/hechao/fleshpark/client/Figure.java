@@ -12,7 +12,8 @@ import java.util.Random;
  * <p>
  * 身份：tourist 2007 年的游客（夏装、挂独立日门票）、bather 泡池的游客、kid 小孩、ranger 护林员、guide 导览员、cook 餐厅、
  * miner 回收公司的采收工（安全帽、头灯）、rescue 2007 年的搜救队（橙衣服、白安全帽、头灯）、tester 前十个体验官（反光背心、红挂绳）、you 你（背心、你的工牌）、announcer 播音员。
- * 姿势：stand 站、raised 举一只手、reach 两只手往前伸、bust 泡在池子里的半身、sit 坐、clap 坐着鼓掌、slump 垂着头。
+ * 姿势：stand 站、raised 举一只手、reach 两只手往前伸、bust 泡在池子里的半身、sit 坐、clap 坐着鼓掌、slump 垂着头、
+ * shake 弯腰两手按住坐着那人的肩膀摇、pull 半蹲一脚在前往后仰、两手攥住坐着那人的胳膊往外拽（收尾回放里搜救队拽人用）。
  */
 final class Figure {
     static final int SKIN = 0, TOP = 1, BOTTOM = 2, SHOES = 3, HAT = 4, HAIR = 5, BAG = 6, VEST = 7, STRIP = 8, LAMP = 9, APRON = 10, TRIM = 11, SLOTS = 12;
@@ -106,7 +107,7 @@ final class Figure {
         boolean kid = kind.equals("kid");
         legK = kid ? rand(0.7, 0.8) : rand(0.9, 1.1);
         torsoK = kid ? rand(0.72, 0.8) : rand(0.88, 1.12);
-        pelvisY = sitting() ? 0.52 : 1.0 * legK;
+        pelvisY = sitting() ? 0.52 : posture.equals("pull") ? 0.7 * legK : posture.equals("shake") ? 0.86 * legK : 1.0 * legK;
         bellyY = pelvisY + 0.24 * torsoK;
         chestY = pelvisY + 0.5 * torsoK;
         shoulderY = pelvisY + 0.67 * torsoK;
@@ -150,6 +151,18 @@ final class Figure {
         if (posture.equals("slump")) {
             s.lean = 0.2;
             s.pitch = 0.75;
+        } else if (posture.equals("shake")) {
+            // 弯腰凑到那人跟前，低头看他的脸
+            s.lean = 0.5;
+            s.pitch = 0.45;
+            s.tilt = 0;
+            s.yaw = 0;
+        } else if (posture.equals("pull")) {
+            // 身子往后坠，脸还冲着那人
+            s.lean = -0.32;
+            s.pitch = 0.32;
+            s.tilt = 0;
+            s.yaw = 0;
         }
     }
 
@@ -487,6 +500,16 @@ final class Figure {
             double kneeY = sitting() ? pelvisY : pelvisY * 0.56;
             double[] knee = sitting() ? new double[]{x * 1.1, kneeY - 0.01, 0.44} : new double[]{x * 1.15, kneeY, 0.015};
             double[] ankle = sitting() ? new double[]{x * 1.15, 0.08, 0.48} : new double[]{x * 1.2, 0.08, -0.01};
+            if (posture.equals("pull")) {
+                // 弓步：一只脚在前蹬住，一只脚在后，膝盖都弯着
+                boolean front = side > 0;
+                knee = front ? new double[]{x * 1.25, pelvisY * 0.62, 0.3} : new double[]{x * 1.2, pelvisY * 0.5, -0.12};
+                ankle = front ? new double[]{x * 1.3, 0.08, 0.26} : new double[]{x * 1.25, 0.08, -0.34};
+            } else if (posture.equals("shake")) {
+                // 膝盖往前顶，半蹲
+                knee = new double[]{x * 1.25, pelvisY * 0.55, 0.16};
+                ankle = new double[]{x * 1.25, 0.08, 0.02};
+            }
             double[] mid = {(x + knee[0]) / 2, (pelvisY - 0.02 + knee[1]) / 2, knee[2] / 2};
             // 大腿：上半截短裤盖着，长袍、裙子的下摆另外加
             boolean robe = top.equals("dress") || top.equals("robe");
@@ -540,6 +563,16 @@ final class Figure {
                 elbow = new double[]{side * (shoulder + 0.1), shoulderY + 0.31 * armK, 0.08};
                 wrist = new double[]{side * (shoulder + 0.13), shoulderY + 0.64 * armK, 0.15};
                 dir = new double[]{0, 1, 0.1};
+            } else if (posture.equals("pull")) {
+                // 两只胳膊绷直往前下方伸，手攥在一处（攥着那人的胳膊）；身子后仰，摆好以后手在胸口前下方
+                elbow = new double[]{side * (shoulder - 0.05), shoulderY - 0.24, 0.3 * armK};
+                wrist = new double[]{side * 0.06, pelvisY + 0.12, 0.66 * armK};
+                dir = new double[]{-side * 0.3, -0.25, 1};
+            } else if (posture.equals("shake")) {
+                // 两只手往前下方按在那人两边肩膀上，胳膊肘往外撑
+                elbow = new double[]{side * (shoulder + 0.07), shoulderY - 0.22, 0.24 * armK};
+                wrist = new double[]{side * (shoulder + 0.02), shoulderY - 0.42, 0.44 * armK};
+                dir = new double[]{0, -0.6, 1};
             } else if (posture.equals("reach")) {
                 elbow = new double[]{side * (shoulder - 0.01), shoulderY - 0.06, 0.33 * armK};
                 wrist = new double[]{side * (shoulder - 0.04), shoulderY - 0.1, 0.68 * armK};

@@ -622,7 +622,7 @@ def main():
         "guide": (6, ("stand", "sit", "clap")),
         "cook": (6, ("stand", "sit", "clap", "slump")),
         "miner": (20, ("stand", "reach", "slump")),
-        "rescue": (5, ("stand", "sit", "reach")),
+        "rescue": (5, ("stand", "sit", "reach", "shake", "pull")),
         "tester": (11, ("stand", "sit", "clap", "reach")),
         "you": (1, ("stand", "sit", "clap")),
         "announcer": (2, ("sit", "stand")),
