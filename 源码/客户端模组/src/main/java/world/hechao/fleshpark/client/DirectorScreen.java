@@ -47,8 +47,12 @@ final class DirectorScreen extends Screen {
                 new Tile("测一次惊吓", "人形贴到面前", "fp scare", false, false, null),
                 new Tile("录像带角标", "开 / 关", null, false, false, Overlay::toggleTape),
                 // 这一轮按意见改了哪些地方，一条一条能跳过去看
-                new Tile("本轮修改", ChangesScreen.count() + " 处 · 去看", null, true, false,
-                        () -> Minecraft.getInstance().setScreen(new ChangesScreen(this))))));
+                new Tile("本轮修改", ChangesScreen.count("changes.txt") + " 处 · 去看", null, true, false,
+                        () -> Minecraft.getInstance().setScreen(new ChangesScreen(this))),
+                // 视频开头介绍公园用的第一人称素材：传过去、自己走几步四处看看，开着录屏点就行
+                new Tile("先导片", "第一人称走一段", null, false, false,
+                        () -> Minecraft.getInstance().setScreen(new ChangesScreen(this, "先导片", "teaser.txt", "走一段",
+                                "开着录屏点「走一段」。走的时候准星、角标、字幕都藏起来，别动鼠标键盘。"))))));
         // 一排一关，从左往右、从上往下就是玩的顺序。只有一个结尾，在最后一格
         rows.add(new Row("序幕 · 第一关  游客中心", List.of(
                 new Tile("入园大厅", "闸机和桌子", "fp tp entry", false, false, null),

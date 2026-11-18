@@ -52,6 +52,10 @@ final class FpCommand implements CommandExecutor, TabCompleter {
                 park.ride.reset(true);
                 park.story.walkieReplay(player);
             }
+            // 导演栏「先导片」：第一人称走一段（1..9）、全部连着走（all）、停（off）
+            case "teaser" -> {
+                if (player != null && args.length > 1) park.story.teaser(player, args[1]);
+            }
             case "scare" -> {
                 if (player != null) park.story.glassScare(player);
             }
